@@ -79,7 +79,7 @@ no_sub:
 	white_a3_2:
 	jal LCD_ShowString
 
-	li t0, 5800000
+	li t0, 5200000
 delay:
 	addi t0, t0, -1
 	bnez t0, delay
