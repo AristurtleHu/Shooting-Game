@@ -50,6 +50,13 @@ typedef enum {
   BULLET_TYPE_SPIRAL    // yellow, diamond, spiral
 } BulletType;
 
+// Enemy type
+typedef enum {
+  ENEMY_TYPE_NORMAL,         // Green, shoots straight bullets
+  ENEMY_TYPE_SINE_SHOOTER,   // Cyan, shoots sine bullets
+  ENEMY_TYPE_SPIRAL_SHOOTER, // Magenta, shoots spiral bullets
+} EnemyType;
+
 void Inp_init(void) {
   rcu_periph_clock_enable(RCU_GPIOA);
   rcu_periph_clock_enable(RCU_GPIOC);
@@ -98,8 +105,7 @@ void Board_self_test(void) {
 int main(void) {
   IO_init();
   LCD_Clear(BLACK);
-  start();
-  // game start
+  start(); // game start, potentially srand()
 
   // Player position
   int player_x = 30, player_y = 30;
@@ -109,6 +115,7 @@ int main(void) {
   // Enemy structure
   typedef struct {
     int x, y, dx, dy, alive;
+    EnemyType type; // Added enemy type
   } Enemy;
   Enemy enemies[MAX_ENEMIES] = {0};
   int enemy_count = 0;
@@ -120,8 +127,9 @@ int main(void) {
     int alive;
     BulletType type;
     float t;              // time for sine/spiral
-    float base_x, base_y; // for sine/spiral
-    float angle;          // for spiral
+    float base_x, base_y; // origin for sine/spiral path
+    float angle;          // main direction for sine, initial angle for spiral
+    float path_speed;     // Speed along main path for SINE bullets
   } Bullet;
   Bullet bullets[MAX_ENEMY_BULLETS] = {0};
   int bullet_count = 0;
@@ -219,6 +227,7 @@ int main(void) {
           enemies[i].dx = (rand() % 2) ? 1 : -1;
           enemies[i].dy = (rand() % 2) ? 1 : -1;
           enemies[i].alive = 1;
+          enemies[i].type = (EnemyType)(rand() % 3); // Assign random type
           enemy_count++;
           break;
         }
@@ -226,7 +235,7 @@ int main(void) {
       enemy_spawn_timer = 0;
     }
 
-    // Enemey shooting
+    // Enemy shooting
     static int enemy_shoot_timer = 0;
     enemy_shoot_timer++;
     if (enemy_shoot_timer > ENEMY_SHOOT_INTERVAL) {
@@ -245,15 +254,41 @@ int main(void) {
               if (len_bullet < 1e-3f)
                 len_bullet = 1.0f;
 
-              bullets[j].x =
-                  ex_center - BULLET_VISUAL_OFFSET; // Approximate center
+              bullets[j].x = ex_center - BULLET_VISUAL_OFFSET;
               bullets[j].y = ey_center - BULLET_VISUAL_OFFSET;
-              bullets[j].dx = ENEMY_BULLET_SPEED * dx_bullet / len_bullet;
-              bullets[j].dy = ENEMY_BULLET_SPEED * dy_bullet / len_bullet;
               bullets[j].alive = 1;
-              bullets[j].type =
-                  BULLET_TYPE_STRAIGHT; // Enemy shoots straight bullets
               bullets[j].t = 0;
+              bullets[j].path_speed = 0.0f; // Default, used by sine
+
+              switch (enemies[i].type) {
+              case ENEMY_TYPE_NORMAL:
+                bullets[j].type = BULLET_TYPE_STRAIGHT;
+                bullets[j].dx = ENEMY_BULLET_SPEED * dx_bullet / len_bullet;
+                bullets[j].dy = ENEMY_BULLET_SPEED * dy_bullet / len_bullet;
+                break;
+              case ENEMY_TYPE_SINE_SHOOTER:
+                bullets[j].type = BULLET_TYPE_SINE;
+                bullets[j].base_x =
+                    bullets[j].x; // Sine wave starts at bullet's initial pos
+                bullets[j].base_y = bullets[j].y;
+                bullets[j].angle =
+                    atan2f(dy_bullet, dx_bullet); // Main direction of sine wave
+                bullets[j].path_speed =
+                    ENEMY_BULLET_SPEED; // Speed along sine path
+                bullets[j].dx = 0;      // Not used by sine update
+                bullets[j].dy = 0;      // Not used by sine update
+                break;
+              case ENEMY_TYPE_SPIRAL_SHOOTER:
+                bullets[j].type = BULLET_TYPE_SPIRAL;
+                bullets[j].base_x =
+                    ex_center; // Spiral originates from enemy center
+                bullets[j].base_y = ey_center;
+                bullets[j].angle =
+                    atan2f(dy_bullet, dx_bullet); // Initial angle of spiral
+                bullets[j].dx = 0;                // Not used by spiral update
+                bullets[j].dy = 0;                // Not used by spiral update
+                break;
+              }
               bullet_count++;
               break;
             }
@@ -272,8 +307,21 @@ int main(void) {
           enemies[i].dx = -enemies[i].dx;
         if (enemies[i].y <= 0 || enemies[i].y >= LCD_H - ENEMY_HEIGHT)
           enemies[i].dy = -enemies[i].dy;
+
+        u16 enemy_color;
+        switch (enemies[i].type) {
+        case ENEMY_TYPE_NORMAL:
+          enemy_color = GREEN;
+          break;
+        case ENEMY_TYPE_SINE_SHOOTER:
+          enemy_color = CYAN;
+          break;
+        case ENEMY_TYPE_SPIRAL_SHOOTER:
+          enemy_color = MAGENTA;
+          break;
+        }
         LCD_Fill(enemies[i].x, enemies[i].y, enemies[i].x + ENEMY_WIDTH - 1,
-                 enemies[i].y + ENEMY_HEIGHT - 1, GREEN);
+                 enemies[i].y + ENEMY_HEIGHT - 1, enemy_color);
       }
     }
 
@@ -289,26 +337,26 @@ int main(void) {
           if (!bullets[i].alive) {
             float angle = b * angle_step;
             bullets[i].x = BOSS_CENTER_X - BULLET_VISUAL_OFFSET;
-            bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET;
-            bullets[i].dx = BOSS_BULLET_SPEED * cosf(angle);
+            bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET bullets[i].dx =
+                               BOSS_BULLET_SPEED * cosf(angle);
             bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
+            bullets[i].path_speed = 0.0f; // Default
 
-            if (b % 3 == 0) {
+            if (b % 3 == 0) { // CIRCLE
               bullets[i].type = BULLET_TYPE_CIRCLE;
-            } else if (b % 3 == 1) {
+            } else if (b % 3 == 1) { // SINE
               bullets[i].type = BULLET_TYPE_SINE;
-              bullets[i].base_x =
-                  bullets[i].x; // Store initial position for sine path
+              bullets[i].base_x = bullets[i].x;
               bullets[i].base_y = bullets[i].y;
               bullets[i].t = 0;
-              bullets[i].angle = angle; // Store main direction angle
-            } else {
+              bullets[i].angle = angle;
+              bullets[i].path_speed = BOSS_BULLET_SPEED;
+            } else { // SPIRAL
               bullets[i].type = BULLET_TYPE_SPIRAL;
-              bullets[i].base_x =
-                  BOSS_CENTER_X; // Spiral originates from boss center
+              bullets[i].base_x = BOSS_CENTER_X;
               bullets[i].base_y = BOSS_CENTER_Y;
               bullets[i].t = 0;
-              bullets[i].angle = angle; // Initial angle for spiral
+              bullets[i].angle = angle;
             }
             bullets[i].alive = 1;
             bullet_count++;
@@ -330,30 +378,32 @@ int main(void) {
           bullets[i].t += 1.0f;
           float freq = 0.15f;
           float amp = 12.0f;
-          // Main direction vector
+
           float main_dir_x = cosf(bullets[i].angle);
           float main_dir_y = sinf(bullets[i].angle);
-          // Position along the main direction
-          float path_x =
-              bullets[i].base_x + main_dir_x * BOSS_BULLET_SPEED * bullets[i].t;
-          float path_y =
-              bullets[i].base_y + main_dir_y * BOSS_BULLET_SPEED * bullets[i].t;
+
+          // Current point on the central path
+          float current_center_x =
+              bullets[i].base_x +
+              main_dir_x * bullets[i].path_speed * bullets[i].t;
+          float current_center_y =
+              bullets[i].base_y +
+              main_dir_y * bullets[i].path_speed * bullets[i].t;
+
           // Perpendicular vector for oscillation
           float perp_x = -main_dir_y;
           float perp_y = main_dir_x;
           float offset = amp * sinf(bullets[i].t * freq);
-          bullets[i].x = path_x + perp_x * offset;
-          bullets[i].y = path_y + perp_y * offset;
+
+          bullets[i].x = current_center_x + perp_x * offset;
+          bullets[i].y = current_center_y + perp_y * offset;
         } else if (bullets[i].type == BULLET_TYPE_SPIRAL) {
           bullets[i].t += 1.0f;
           float spiral_growth_rate = 0.7f;
           float spiral_angular_speed = 0.12f;
-          float current_radius =
-              10.0f +
-              bullets[i].t * spiral_growth_rate; // Radius increases over time
+          float current_radius = 10.0f + bullets[i].t * spiral_growth_rate;
           float current_angle =
-              bullets[i].angle +
-              bullets[i].t * spiral_angular_speed; // Angle rotates over time
+              bullets[i].angle + bullets[i].t * spiral_angular_speed;
           bullets[i].x = bullets[i].base_x +
                          current_radius * cosf(current_angle) -
                          BULLET_VISUAL_OFFSET;
@@ -380,14 +430,13 @@ int main(void) {
           LCD_Fill(bx_int, by_int, bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
                    by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, MAGENTA);
         } else if (bullets[i].type == BULLET_TYPE_SINE) {
-          int tri_x[3] = {bx_int + 2, bx_int,
-                          bx_int + 4}; // Centered around (bx+2, by+2) approx
+          int tri_x[3] = {bx_int + 2, bx_int, bx_int + 4};
           int tri_y[3] = {by_int, by_int + 4, by_int + 4};
           LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], CYAN);
           LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], CYAN);
           LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], CYAN);
         } else if (bullets[i].type == BULLET_TYPE_SPIRAL) {
-          int diamond_cx = bx_int + 2; // Approx center for a 5x5 diamond
+          int diamond_cx = bx_int + 2;
           int diamond_cy = by_int + 2;
           LCD_DrawLine(diamond_cx, diamond_cy - 3, diamond_cx + 3, diamond_cy,
                        YELLOW);
@@ -420,7 +469,7 @@ int main(void) {
           float dx_seek = enemy_cx - p_bullet_cx;
           float dy_seek = enemy_cy - p_bullet_cy;
           float len_seek = sqrtf(dx_seek * dx_seek + dy_seek * dy_seek);
-          if (len_seek > 1.0f) { // Only adjust if not too close
+          if (len_seek > 1.0f) {
             player_bullets[i].dx = PLAYER_BULLET_SPEED * dx_seek / len_seek;
             player_bullets[i].dy = PLAYER_BULLET_SPEED * dy_seek / len_seek;
           }
@@ -463,21 +512,6 @@ int main(void) {
     LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
              BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
-    // FPS and Entity count (optional, can be uncommented if snprintf and
-    // LCD_ShowString are robust) static int frame_count = 0; static uint32_t
-    // last_time = 0; uint32_t current_time = systick_current_value(); //
-    // Assuming systick or similar timer frame_count++; if (current_time -
-    // last_time >= 1000) { // Update FPS every second (approx)
-    //    fps = frame_count;
-    //    frame_count = 0;
-    //    last_time = current_time;
-    // }
-    // char info[32];
-    // int current_entity_count = enemy_count + bullet_count +
-    // player_bullet_count + 1; // +1 for player snprintf(info, sizeof(info),
-    // "FPS:%d ENT:%d", fps, current_entity_count); LCD_ShowString(2, 2, (u8
-    // *)info, YELLOW);
-
-    delay_1ms(20); // Frame delay
+    delay_1ms(20);
   }
 }
