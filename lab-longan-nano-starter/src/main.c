@@ -8,23 +8,23 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 // Game Constants
-#define MAX_ENEMIES 3
+#define MAX_ENEMIES 10
 #define MAX_ENEMY_BULLETS 12
-#define MAX_PLAYER_BULLETS 32
+#define MAX_PLAYER_BULLETS 300
 
-#define PLAYER_SPEED 2
+#define PLAYER_SPEED 3
 
 #define ENEMY_WIDTH 8
 #define ENEMY_HEIGHT 8
 #define ENEMY_CENTER_OFFSET (ENEMY_WIDTH / 2)
 
 #define PLAYER_BULLET_DRAW_SIZE 4
-#define PLAYER_BULLET_SPEED 1.0f
+#define PLAYER_BULLET_SPEED 1.5f
 #define PLAYER_BULLET_COOLDOWN_FRAMES 8
 #define PLAYER_BULLET_CENTER_OFFSET (PLAYER_BULLET_DRAW_SIZE / 2)
 
-#define ENEMY_BULLET_SPEED 1.0f
-#define BOSS_BULLET_SPEED 1.0f
+#define ENEMY_BULLET_SPEED 1.5f
+#define BOSS_BULLET_SPEED 1.5f
 
 #define BULLET_CIRCLE_DRAW_SIZE 3
 #define BULLET_STRAIGHT_DRAW_SIZE 4
@@ -578,9 +578,8 @@ int main(void) {
     for (int i = 0; i < MAX_ENEMIES; ++i) {
       if (enemies[i].prev_alive) {
         LCD_Fill(enemies[i].prev_x, enemies[i].prev_y,
-                 min(enemies[i].x, enemies[i].prev_x + ENEMY_WIDTH - 1),
-                 min(enemies[i].y, enemies[i].prev_y + ENEMY_HEIGHT - 1),
-                 BLACK);
+                 enemies[i].prev_x + ENEMY_WIDTH - 1,
+                 enemies[i].prev_y + ENEMY_HEIGHT - 1, BLACK);
       }
     }
 
@@ -630,7 +629,7 @@ int main(void) {
 
     static uint32_t prev_fps = 0, prev_entity_count = 0;
     if (fps != prev_fps) {
-      LCD_Fill(30, 17, 60, 30, BLACK); // Clear top area for text
+      // LCD_Fill(30, 17, 60, 30, BLACK); // Clear top area for text
       prev_fps = fps;
     }
 
