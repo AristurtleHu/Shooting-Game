@@ -8,9 +8,9 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 // Game Constants
-#define MAX_ENEMIES 5
-#define MAX_BOSS_BULLETS 21 // Bullets spawned by the central boss site
-#define MAX_REGULAR_ENEMY_BULLETS 300 // Bullets spawned by enemies
+#define MAX_ENEMIES 0
+#define MAX_BOSS_BULLETS 20          // Bullets spawned by the central boss site
+#define MAX_REGULAR_ENEMY_BULLETS 33 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
 #define PLAYER_SPEED 3
@@ -34,7 +34,8 @@
 #define ENEMY_SPAWN_INTERVAL 50
 #define ENEMY_SHOOT_INTERVAL 40
 #define BOSS_BULLET_SPAWN_INTERVAL 30
-#define BOSS_BULLETS_PER_WAVE 99 // Number of directions in a boss wave attempt
+#define BOSS_BULLETS_PER_WAVE                                                  \
+  MAX_BOSS_BULLETS // Number of directions in a boss wave attempt
 
 #define BOSS_SITE_WIDTH 12
 #define BOSS_SITE_HEIGHT 12
@@ -361,9 +362,9 @@ int main(void) {
             boss_bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
             boss_bullets[i].path_speed = 0.0f;
 
-            if (b % 3 == 0) {
+            if (0) {
               boss_bullets[i].type = BULLET_TYPE_CIRCLE;
-            } else if (b % 3 == 1) {
+            } else if (0) {
               boss_bullets[i].type = BULLET_TYPE_SINE;
               boss_bullets[i].base_x = boss_bullets[i].x;
               boss_bullets[i].base_y = boss_bullets[i].y;
@@ -618,7 +619,8 @@ int main(void) {
              BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
     uint32_t entity_count =
-        boss_bullet_count + enemy_bullet_count + player_bullet_count;
+        boss_bullet_count * 4 + enemy_bullet_count + player_bullet_count;
+    // diamond is 4 of line bullet
     static uint64_t prev_frame_mtime_ns = 0;
     static uint8_t fps_first_calc_done = 0;
     uint32_t fps;
@@ -765,6 +767,6 @@ int main(void) {
       player_bullets[i].prev_alive = player_bullets[i].alive;
     }
 
-    delay_1ms(10);
+    delay_1ms(5);
   }
 }
