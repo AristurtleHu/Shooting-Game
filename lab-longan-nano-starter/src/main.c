@@ -337,8 +337,8 @@ int main(void) {
           if (!bullets[i].alive) {
             float angle = b * angle_step;
             bullets[i].x = BOSS_CENTER_X - BULLET_VISUAL_OFFSET;
-            bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET bullets[i].dx =
-                               BOSS_BULLET_SPEED * cosf(angle);
+            bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET;
+            bullets[i].dx = BOSS_BULLET_SPEED * cosf(angle);
             bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
             bullets[i].path_speed = 0.0f; // Default
 
@@ -512,6 +512,25 @@ int main(void) {
     LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
              BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
+    int entity_count = bullet_count + player_bullet_count;
+
+    uint64_t start = get_timer_value(), start_mtime;
+    do {
+      start_mtime = get_timer_value();
+    } while (start_mtime == start);
     delay_1ms(20);
+    uint64_t end = get_timer_value(), end_mtime;
+    do {
+      end_mtime = get_timer_value();
+    } while (end_mtime == end);
+    uint64_t delta_mtime = end_mtime - start_mtime;
+    uint64_t fps = 1000 / (delta_mtime / 1000.0);
+
+    char entity_str[32];
+    char fps_str[32];
+    sprintf(entity_str, "Entities: %d", entity_count);
+    sprintf(fps_str, "FPS: %llu", (unsigned long long)fps);
+    LCD_ShowString(0, 0, (u8 *)entity_str, WHITE);
+    LCD_ShowString(0, 10, (u8 *)fps_str, WHITE);
   }
 }
