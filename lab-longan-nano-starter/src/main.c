@@ -10,7 +10,7 @@
 // Game Constants
 #define MAX_ENEMIES 5
 #define MAX_BOSS_BULLETS 40          // Bullets spawned by the central boss site
-#define MAX_REGULAR_ENEMY_BULLETS 33 // Bullets spawned by enemies
+#define MAX_REGULAR_ENEMY_BULLETS 20 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
 #define PLAYER_SPEED 3
