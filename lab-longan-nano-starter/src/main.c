@@ -4,24 +4,27 @@
 #include "stdio.h"
 #include "utils.h"
 
+// Helper macro
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
 // Game Constants
 #define MAX_ENEMIES 3
-#define MAX_ENEMY_BULLETS 512
+#define MAX_ENEMY_BULLETS 12
 #define MAX_PLAYER_BULLETS 32
 
 #define PLAYER_SPEED 2
 
-#define ENEMY_WIDTH 10
-#define ENEMY_HEIGHT 10
+#define ENEMY_WIDTH 8
+#define ENEMY_HEIGHT 8
 #define ENEMY_CENTER_OFFSET (ENEMY_WIDTH / 2)
 
 #define PLAYER_BULLET_DRAW_SIZE 4
-#define PLAYER_BULLET_SPEED 4.0f
+#define PLAYER_BULLET_SPEED 1.0f
 #define PLAYER_BULLET_COOLDOWN_FRAMES 8
 #define PLAYER_BULLET_CENTER_OFFSET (PLAYER_BULLET_DRAW_SIZE / 2)
 
-#define ENEMY_BULLET_SPEED 2.5f
-#define BOSS_BULLET_SPEED 3.0f
+#define ENEMY_BULLET_SPEED 1.0f
+#define BOSS_BULLET_SPEED 1.0f
 
 #define BULLET_CIRCLE_DRAW_SIZE 3
 #define BULLET_STRAIGHT_DRAW_SIZE 4
@@ -32,10 +35,10 @@
 #define BOSS_BULLET_SPAWN_INTERVAL 30
 #define BOSS_BULLETS_PER_WAVE 60
 
-#define BOSS_SITE_X 100
-#define BOSS_SITE_Y 10
-#define BOSS_SITE_WIDTH 20
-#define BOSS_SITE_HEIGHT 20
+#define BOSS_SITE_WIDTH 12
+#define BOSS_SITE_HEIGHT 12
+#define BOSS_SITE_X ((LCD_W - BOSS_SITE_WIDTH) / 2)
+#define BOSS_SITE_Y ((LCD_H - BOSS_SITE_HEIGHT) / 2)
 #define BOSS_CENTER_X (BOSS_SITE_X + BOSS_SITE_WIDTH / 2)
 #define BOSS_CENTER_Y (BOSS_SITE_Y + BOSS_SITE_HEIGHT / 2)
 
@@ -105,19 +108,23 @@ void Board_self_test(void) {
 int main(void) {
   IO_init();
   LCD_Clear(BLACK);
-  start(); // game start, potentially srand()
+  start();
 
   // Player position
   int player_x = 30, player_y = 30;
-  const int player_size = 6; // Player is a square of side player_size
+  int prev_player_x, prev_player_y;
+  const int player_size = 6;
   const int player_center_offset = player_size / 2;
 
   // Enemy structure
   typedef struct {
     int x, y, dx, dy, alive;
-    EnemyType type; // Added enemy type
+    int prev_x, prev_y;
+    int prev_alive;
+    EnemyType type;
   } Enemy;
-  Enemy enemies[MAX_ENEMIES] = {0};
+  Enemy enemies[MAX_ENEMIES] = {
+      0}; // Initializes all fields to 0, including prev_alive
   int enemy_count = 0;
 
   // Bullet structure (boss/enemy bullets)
@@ -125,6 +132,8 @@ int main(void) {
     float x, y;
     float dx, dy;
     int alive;
+    float prev_x, prev_y;
+    int prev_alive;
     BulletType type;
     float t;              // time for sine/spiral
     float base_x, base_y; // origin for sine/spiral path
@@ -139,19 +148,29 @@ int main(void) {
     float x, y;
     float dx, dy;
     int alive;
-    int target_idx; // index of target enemy
+    float prev_x, prev_y;
+    int prev_alive;
+    int target_idx;
   } PlayerBullet;
   PlayerBullet player_bullets[MAX_PLAYER_BULLETS] = {0};
   int player_bullet_count = 0;
   int player_bullet_cooldown = 0;
 
-  // Draw boss
+  // Initial screen clear
+  LCD_Clear(BLACK);
+
+  // Initial draw of static elements
   LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
            BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
-  while (1) {
-    LCD_Clear(BLACK);
+  // Initial player draw and prev state setup
+  LCD_Fill(player_x, player_y, player_x + player_size - 1,
+           player_y + player_size - 1, RED);
+  prev_player_x = player_x;
+  prev_player_y = player_y;
 
+  while (1) {
+    // --- GAME LOGIC PHASE ---
     // Handle player movement
     if (Get_Button(JOY_LEFT) && player_x > 0)
       player_x -= PLAYER_SPEED;
@@ -162,7 +181,7 @@ int main(void) {
     if (Get_Button(JOY_DOWN) && player_y < LCD_H - player_size)
       player_y += PLAYER_SPEED;
 
-    // Player shoot (seek to nearest enemy)
+    // Player shoot
     if (Get_Button(BUTTON_1) && player_bullet_cooldown == 0 &&
         player_bullet_count < MAX_PLAYER_BULLETS) {
       // Find nearest alive enemy
@@ -216,7 +235,7 @@ int main(void) {
     if (player_bullet_cooldown > 0)
       player_bullet_cooldown--;
 
-    // Spawn enemies by time
+    // Spawn enemies
     static int enemy_spawn_timer = 0;
     enemy_spawn_timer++;
     if (enemy_spawn_timer > ENEMY_SPAWN_INTERVAL && enemy_count < MAX_ENEMIES) {
@@ -268,25 +287,20 @@ int main(void) {
                 break;
               case ENEMY_TYPE_SINE_SHOOTER:
                 bullets[j].type = BULLET_TYPE_SINE;
-                bullets[j].base_x =
-                    bullets[j].x; // Sine wave starts at bullet's initial pos
+                bullets[j].base_x = bullets[j].x;
                 bullets[j].base_y = bullets[j].y;
-                bullets[j].angle =
-                    atan2f(dy_bullet, dx_bullet); // Main direction of sine wave
-                bullets[j].path_speed =
-                    ENEMY_BULLET_SPEED; // Speed along sine path
-                bullets[j].dx = 0;      // Not used by sine update
-                bullets[j].dy = 0;      // Not used by sine update
+                bullets[j].angle = atan2f(dy_bullet, dx_bullet);
+                bullets[j].path_speed = ENEMY_BULLET_SPEED;
+                bullets[j].dx = 0;
+                bullets[j].dy = 0;
                 break;
               case ENEMY_TYPE_SPIRAL_SHOOTER:
                 bullets[j].type = BULLET_TYPE_SPIRAL;
-                bullets[j].base_x =
-                    ex_center; // Spiral originates from enemy center
+                bullets[j].base_x = ex_center;
                 bullets[j].base_y = ey_center;
-                bullets[j].angle =
-                    atan2f(dy_bullet, dx_bullet); // Initial angle of spiral
-                bullets[j].dx = 0;                // Not used by spiral update
-                bullets[j].dy = 0;                // Not used by spiral update
+                bullets[j].angle = atan2f(dy_bullet, dx_bullet);
+                bullets[j].dx = 0;
+                bullets[j].dy = 0;
                 break;
               }
               bullet_count++;
@@ -298,7 +312,7 @@ int main(void) {
       enemy_shoot_timer = 0;
     }
 
-    // Update and draw enemies
+    // Update enemies
     for (int i = 0; i < MAX_ENEMIES; ++i) {
       if (enemies[i].alive) {
         enemies[i].x += enemies[i].dx;
@@ -307,25 +321,10 @@ int main(void) {
           enemies[i].dx = -enemies[i].dx;
         if (enemies[i].y <= 0 || enemies[i].y >= LCD_H - ENEMY_HEIGHT)
           enemies[i].dy = -enemies[i].dy;
-
-        u16 enemy_color;
-        switch (enemies[i].type) {
-        case ENEMY_TYPE_NORMAL:
-          enemy_color = GREEN;
-          break;
-        case ENEMY_TYPE_SINE_SHOOTER:
-          enemy_color = CYAN;
-          break;
-        case ENEMY_TYPE_SPIRAL_SHOOTER:
-          enemy_color = MAGENTA;
-          break;
-        }
-        LCD_Fill(enemies[i].x, enemies[i].y, enemies[i].x + ENEMY_WIDTH - 1,
-                 enemies[i].y + ENEMY_HEIGHT - 1, enemy_color);
       }
     }
 
-    // Bullet boom: spawn a lot of bullets in all directions from boss site
+    // Boss bullet spawn
     static int bullet_spawn_timer = 0;
     bullet_spawn_timer++;
     if (bullet_spawn_timer > BOSS_BULLET_SPAWN_INTERVAL &&
@@ -340,18 +339,18 @@ int main(void) {
             bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET;
             bullets[i].dx = BOSS_BULLET_SPEED * cosf(angle);
             bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
-            bullets[i].path_speed = 0.0f; // Default
+            bullets[i].path_speed = 0.0f;
 
-            if (b % 3 == 0) { // CIRCLE
+            if (b % 3 == 0) {
               bullets[i].type = BULLET_TYPE_CIRCLE;
-            } else if (b % 3 == 1) { // SINE
+            } else if (b % 3 == 1) {
               bullets[i].type = BULLET_TYPE_SINE;
               bullets[i].base_x = bullets[i].x;
               bullets[i].base_y = bullets[i].y;
               bullets[i].t = 0;
               bullets[i].angle = angle;
               bullets[i].path_speed = BOSS_BULLET_SPEED;
-            } else { // SPIRAL
+            } else {
               bullets[i].type = BULLET_TYPE_SPIRAL;
               bullets[i].base_x = BOSS_CENTER_X;
               bullets[i].base_y = BOSS_CENTER_Y;
@@ -367,7 +366,7 @@ int main(void) {
       bullet_spawn_timer = 0;
     }
 
-    // Update and draw boss and enemy bullets
+    // Update boss and enemy bullets
     for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
       if (bullets[i].alive) {
         if (bullets[i].type == BULLET_TYPE_CIRCLE ||
@@ -382,7 +381,6 @@ int main(void) {
           float main_dir_x = cosf(bullets[i].angle);
           float main_dir_y = sinf(bullets[i].angle);
 
-          // Current point on the central path
           float current_center_x =
               bullets[i].base_x +
               main_dir_x * bullets[i].path_speed * bullets[i].t;
@@ -390,7 +388,6 @@ int main(void) {
               bullets[i].base_y +
               main_dir_y * bullets[i].path_speed * bullets[i].t;
 
-          // Perpendicular vector for oscillation
           float perp_x = -main_dir_y;
           float perp_y = main_dir_x;
           float offset = amp * sinf(bullets[i].t * freq);
@@ -401,9 +398,11 @@ int main(void) {
           bullets[i].t += 1.0f;
           float spiral_growth_rate = 0.7f;
           float spiral_angular_speed = 0.12f;
+
           float current_radius = 10.0f + bullets[i].t * spiral_growth_rate;
           float current_angle =
               bullets[i].angle + bullets[i].t * spiral_angular_speed;
+
           bullets[i].x = bullets[i].base_x +
                          current_radius * cosf(current_angle) -
                          BULLET_VISUAL_OFFSET;
@@ -411,16 +410,87 @@ int main(void) {
                          current_radius * sinf(current_angle) -
                          BULLET_VISUAL_OFFSET;
         }
-
-        // Out of bounds check
         if (bullets[i].x < -BULLET_STRAIGHT_DRAW_SIZE || bullets[i].x > LCD_W ||
             bullets[i].y < -BULLET_STRAIGHT_DRAW_SIZE || bullets[i].y > LCD_H) {
           bullets[i].alive = 0;
           bullet_count--;
-          continue;
         }
+      }
+    }
 
-        // Draw with different shape and color
+    // Update player bullets (movement, collision, off-screen removal)
+    for (int i = 0; i < MAX_PLAYER_BULLETS; ++i) {
+      if (player_bullets[i].alive) {
+        player_bullets[i].x += player_bullets[i].dx;
+        player_bullets[i].y += player_bullets[i].dy;
+
+        int target_enemy_idx = player_bullets[i].target_idx;
+        if (target_enemy_idx >= 0 && target_enemy_idx < MAX_ENEMIES &&
+            enemies[target_enemy_idx].alive) {
+          float p_bullet_cx = player_bullets[i].x + PLAYER_BULLET_CENTER_OFFSET;
+          float p_bullet_cy = player_bullets[i].y + PLAYER_BULLET_CENTER_OFFSET;
+          float enemy_cx = enemies[target_enemy_idx].x + ENEMY_CENTER_OFFSET;
+          float enemy_cy = enemies[target_enemy_idx].y + ENEMY_CENTER_OFFSET;
+
+          float dx_seek = enemy_cx - p_bullet_cx;
+          float dy_seek = enemy_cy - p_bullet_cy;
+          float len_seek = sqrtf(dx_seek * dx_seek + dy_seek * dy_seek);
+          if (len_seek > 1.0f) {
+            player_bullets[i].dx = PLAYER_BULLET_SPEED * dx_seek / len_seek;
+            player_bullets[i].dy = PLAYER_BULLET_SPEED * dy_seek / len_seek;
+          }
+
+          if (fabsf(p_bullet_cx - enemy_cx) <
+                  COLLISION_THRESHOLD_PLAYER_BULLET_ENEMY &&
+              fabsf(p_bullet_cy - enemy_cy) <
+                  COLLISION_THRESHOLD_PLAYER_BULLET_ENEMY) {
+            enemies[target_enemy_idx].alive = 0;
+            enemy_count--;
+            player_bullets[i].alive = 0;
+            player_bullet_count--;
+          }
+        }
+        if (player_bullets[i].alive &&
+            (player_bullets[i].x < -PLAYER_BULLET_DRAW_SIZE ||
+             player_bullets[i].x > LCD_W ||
+             player_bullets[i].y < -PLAYER_BULLET_DRAW_SIZE ||
+             player_bullets[i].y > LCD_H)) {
+          player_bullets[i].alive = 0;
+          player_bullet_count--;
+        }
+      }
+    }
+
+    // --- DRAW PHASE ---
+    // Draw player
+    LCD_Fill(player_x, player_y, player_x + player_size - 1,
+             player_y + player_size - 1, RED);
+
+    // Draw enemies
+    for (int i = 0; i < MAX_ENEMIES; ++i) {
+      if (enemies[i].alive) {
+        u16 enemy_color;
+        switch (enemies[i].type) {
+        case ENEMY_TYPE_NORMAL:
+          enemy_color = GREEN;
+          break;
+        case ENEMY_TYPE_SINE_SHOOTER:
+          enemy_color = CYAN;
+          break;
+        case ENEMY_TYPE_SPIRAL_SHOOTER:
+          enemy_color = MAGENTA;
+          break;
+        default:
+          enemy_color = WHITE;
+        }
+        LCD_Fill(enemies[i].x, enemies[i].y, enemies[i].x + ENEMY_WIDTH - 1,
+                 enemies[i].y + ENEMY_HEIGHT - 1, enemy_color);
+      }
+    }
+
+    // Draw boss and enemy bullets
+    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
+      if (bullets[i].alive) {
         int bx_int = (int)bullets[i].x;
         int by_int = (int)bullets[i].y;
         if (bullets[i].type == BULLET_TYPE_CIRCLE) {
@@ -450,87 +520,145 @@ int main(void) {
       }
     }
 
-    // Update and draw player bullets
+    // Draw player bullets
     for (int i = 0; i < MAX_PLAYER_BULLETS; ++i) {
       if (player_bullets[i].alive) {
-        player_bullets[i].x += player_bullets[i].dx;
-        player_bullets[i].y += player_bullets[i].dy;
-        int hit = 0;
+        LCD_Fill((int)player_bullets[i].x, (int)player_bullets[i].y,
+                 (int)player_bullets[i].x + PLAYER_BULLET_DRAW_SIZE - 1,
+                 (int)player_bullets[i].y + PLAYER_BULLET_DRAW_SIZE - 1, BLUE);
+      }
+    }
 
-        int target_enemy_idx = player_bullets[i].target_idx;
-        if (target_enemy_idx >= 0 && target_enemy_idx < MAX_ENEMIES &&
-            enemies[target_enemy_idx].alive) {
-          float p_bullet_cx = player_bullets[i].x + PLAYER_BULLET_CENTER_OFFSET;
-          float p_bullet_cy = player_bullets[i].y + PLAYER_BULLET_CENTER_OFFSET;
-          float enemy_cx = enemies[target_enemy_idx].x + ENEMY_CENTER_OFFSET;
-          float enemy_cy = enemies[target_enemy_idx].y + ENEMY_CENTER_OFFSET;
+    // Draw boss site (static, redraw to ensure it's not corrupted by erasures)
+    LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
+             BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
-          // Re-target (seek)
-          float dx_seek = enemy_cx - p_bullet_cx;
-          float dy_seek = enemy_cy - p_bullet_cy;
-          float len_seek = sqrtf(dx_seek * dx_seek + dy_seek * dy_seek);
-          if (len_seek > 1.0f) {
-            player_bullets[i].dx = PLAYER_BULLET_SPEED * dx_seek / len_seek;
-            player_bullets[i].dy = PLAYER_BULLET_SPEED * dy_seek / len_seek;
-          }
+    // Draw text
+    uint32_t entity_count = bullet_count + player_bullet_count;
 
-          // Collision check
-          if (fabsf(p_bullet_cx - enemy_cx) <
-                  COLLISION_THRESHOLD_PLAYER_BULLET_ENEMY &&
-              fabsf(p_bullet_cy - enemy_cy) <
-                  COLLISION_THRESHOLD_PLAYER_BULLET_ENEMY) {
-            enemies[target_enemy_idx].alive = 0;
-            enemy_count--;
-            player_bullets[i].alive = 0;
-            player_bullet_count--;
-            hit = 1;
-          }
-        }
-        if (!hit) {
-          // Out of screen
-          if (player_bullets[i].x < -PLAYER_BULLET_DRAW_SIZE ||
-              player_bullets[i].x > LCD_W ||
-              player_bullets[i].y < -PLAYER_BULLET_DRAW_SIZE ||
-              player_bullets[i].y > LCD_H) {
-            player_bullets[i].alive = 0;
-            player_bullet_count--;
-            continue;
-          }
-          LCD_Fill((int)player_bullets[i].x, (int)player_bullets[i].y,
-                   (int)player_bullets[i].x + PLAYER_BULLET_DRAW_SIZE - 1,
-                   (int)player_bullets[i].y + PLAYER_BULLET_DRAW_SIZE - 1,
-                   BLUE);
+    static uint64_t prev_frame_mtime_ns =
+        0; // Stores mtime of the previous frame
+    static uint8_t fps_first_calc_done =
+        0;        // Flag to handle the first frame calculation
+    uint32_t fps; // Calculated FPS will be stored here
+
+    uint64_t current_frame_mtime_ns = get_timer_value();
+
+    if (!fps_first_calc_done) {
+      fps = 0; // FPS is unknown for the first frame
+      fps_first_calc_done = 1;
+    } else {
+      uint64_t mtime_diff = current_frame_mtime_ns - prev_frame_mtime_ns;
+      if (mtime_diff > 0) {
+        uint32_t mtime_clk_freq = SystemCoreClock / 4;
+        if (mtime_clk_freq > 0)
+          fps = (uint32_t)(mtime_clk_freq / mtime_diff);
+        else
+          fps = 0; // SystemCoreClock not set or error
+      } else
+        // This case might occur if frames are extremely fast
+        fps = 999;
+    }
+    prev_frame_mtime_ns = current_frame_mtime_ns;
+
+    char entity_str[32];
+    char fps_str[32];
+    sprintf(entity_str, "Num: %lu", (long unsigned int)entity_count);
+    sprintf(fps_str, "FPS: %lu", (long unsigned int)fps);
+    LCD_ShowString(0, 0, (u8 *)entity_str, WHITE);
+    LCD_ShowString(0, 15, (u8 *)fps_str, WHITE);
+
+    // --- ERASE PHASE ---
+    // Erase player at its previous position
+    if (prev_player_x != player_x || prev_player_y != player_y)
+      LCD_Fill(prev_player_x, prev_player_y, prev_player_x + player_size - 1,
+               prev_player_y + player_size - 1, BLACK);
+
+    // Erase enemies at their previous positions if they were alive
+    for (int i = 0; i < MAX_ENEMIES; ++i) {
+      if (enemies[i].prev_alive) {
+        LCD_Fill(enemies[i].prev_x, enemies[i].prev_y,
+                 min(enemies[i].x, enemies[i].prev_x + ENEMY_WIDTH - 1),
+                 min(enemies[i].y, enemies[i].prev_y + ENEMY_HEIGHT - 1),
+                 BLACK);
+      }
+    }
+
+    // Erase enemy bullets at their previous positions if they were alive
+    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
+      if (bullets[i].prev_alive) {
+        int prev_bx_int = (int)bullets[i].prev_x;
+        int prev_by_int = (int)bullets[i].prev_y;
+        if (bullets[i].type == BULLET_TYPE_CIRCLE) {
+          LCD_Fill(prev_bx_int, prev_by_int,
+                   prev_bx_int + BULLET_CIRCLE_DRAW_SIZE - 1,
+                   prev_by_int + BULLET_CIRCLE_DRAW_SIZE - 1, BLACK);
+        } else if (bullets[i].type == BULLET_TYPE_STRAIGHT) {
+          LCD_Fill(prev_bx_int, prev_by_int,
+                   prev_bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
+                   prev_by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, BLACK);
+        } else if (bullets[i].type == BULLET_TYPE_SINE) {
+          int tri_x[3] = {prev_bx_int + 2, prev_bx_int, prev_bx_int + 4};
+          int tri_y[3] = {prev_by_int, prev_by_int + 4, prev_by_int + 4};
+          LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], BLACK);
+          LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], BLACK);
+          LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], BLACK);
+        } else if (bullets[i].type == BULLET_TYPE_SPIRAL) {
+          int diamond_cx = prev_bx_int + 2;
+          int diamond_cy = prev_by_int + 2;
+          LCD_DrawLine(diamond_cx, diamond_cy - 3, diamond_cx + 3, diamond_cy,
+                       BLACK);
+          LCD_DrawLine(diamond_cx + 3, diamond_cy, diamond_cx, diamond_cy + 3,
+                       BLACK);
+          LCD_DrawLine(diamond_cx, diamond_cy + 3, diamond_cx - 3, diamond_cy,
+                       BLACK);
+          LCD_DrawLine(diamond_cx - 3, diamond_cy, diamond_cx, diamond_cy - 3,
+                       BLACK);
         }
       }
     }
 
-    // Draw player
-    LCD_Fill(player_x, player_y, player_x + player_size - 1,
-             player_y + player_size - 1, RED);
+    // Erase player bullets at their previous positions if they were alive
+    for (int i = 0; i < MAX_PLAYER_BULLETS; ++i) {
+      if (player_bullets[i].prev_alive) {
+        LCD_Fill((int)player_bullets[i].prev_x, (int)player_bullets[i].prev_y,
+                 (int)player_bullets[i].prev_x + PLAYER_BULLET_DRAW_SIZE - 1,
+                 (int)player_bullets[i].prev_y + PLAYER_BULLET_DRAW_SIZE - 1,
+                 BLACK);
+      }
+    }
 
-    // Draw boss site as a yellow square (static)
-    LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
-             BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
+    static uint32_t prev_fps = 0, prev_entity_count = 0;
+    if (fps != prev_fps) {
+      LCD_Fill(30, 17, 60, 30, BLACK); // Clear top area for text
+      prev_fps = fps;
+    }
 
-    int entity_count = bullet_count + player_bullet_count;
+    if (entity_count != prev_entity_count) {
+      LCD_Fill(30, 0, 60, 15, BLACK);
+      prev_entity_count = entity_count;
+    }
 
-    uint64_t start = get_timer_value(), start_mtime;
-    do {
-      start_mtime = get_timer_value();
-    } while (start_mtime == start);
-    delay_1ms(20);
-    uint64_t end = get_timer_value(), end_mtime;
-    do {
-      end_mtime = get_timer_value();
-    } while (end_mtime == end);
-    uint64_t delta_mtime = end_mtime - start_mtime;
-    uint64_t fps = 1000 / (delta_mtime / 1000.0);
+    // --- STORE STATE PHASE ---
+    prev_player_x = player_x;
+    prev_player_y = player_y;
 
-    char entity_str[32];
-    char fps_str[32];
-    sprintf(entity_str, "Entities: %d", entity_count);
-    sprintf(fps_str, "FPS: %llu", (unsigned long long)fps);
-    LCD_ShowString(0, 0, (u8 *)entity_str, WHITE);
-    LCD_ShowString(0, 10, (u8 *)fps_str, WHITE);
+    for (int i = 0; i < MAX_ENEMIES; ++i) {
+      enemies[i].prev_x = enemies[i].x;
+      enemies[i].prev_y = enemies[i].y;
+      enemies[i].prev_alive = enemies[i].alive;
+    }
+    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
+      bullets[i].prev_x = bullets[i].x;
+      bullets[i].prev_y = bullets[i].y;
+      bullets[i].prev_alive = bullets[i].alive;
+    }
+    for (int i = 0; i < MAX_PLAYER_BULLETS; ++i) {
+      player_bullets[i].prev_x = player_bullets[i].x;
+      player_bullets[i].prev_y = player_bullets[i].y;
+      player_bullets[i].prev_alive = player_bullets[i].alive;
+    }
+
+    delay_1ms(10);
   }
 }
