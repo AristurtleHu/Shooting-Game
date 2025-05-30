@@ -9,22 +9,22 @@
 
 // Game Constants
 #define MAX_ENEMIES 5
-#define MAX_BOSS_BULLETS 66          // Bullets spawned by the central boss site
-#define MAX_REGULAR_ENEMY_BULLETS 30 // Bullets spawned by enemies
+#define MAX_BOSS_BULLETS 33 // Bullets spawned by the central boss site
+#define MAX_REGULAR_ENEMY_BULLETS 300 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
 #define PLAYER_SPEED 3
 
-#define ENEMY_WIDTH 8
-#define ENEMY_HEIGHT 8
+#define ENEMY_WIDTH 2
+#define ENEMY_HEIGHT 2
 #define ENEMY_CENTER_OFFSET (ENEMY_WIDTH / 2)
 
 #define PLAYER_BULLET_DRAW_SIZE 4
-#define PLAYER_BULLET_SPEED 1.5f
+#define PLAYER_BULLET_SPEED 0.5f
 #define PLAYER_BULLET_COOLDOWN_FRAMES 8
 #define PLAYER_BULLET_CENTER_OFFSET (PLAYER_BULLET_DRAW_SIZE / 2)
 
-#define ENEMY_BULLET_SPEED 2.5f // Speed for regular enemy bullets
+#define ENEMY_BULLET_SPEED 0.5f // Speed for regular enemy bullets
 #define BOSS_BULLET_SPEED 3.5f  // Speed for boss bullets
 
 #define BULLET_CIRCLE_DRAW_SIZE 3
@@ -32,7 +32,7 @@
 #define BULLET_VISUAL_OFFSET 2.0f // Offset for drawing to center the visual
 
 #define ENEMY_SPAWN_INTERVAL 50
-#define ENEMY_SHOOT_INTERVAL 40
+#define ENEMY_SHOOT_INTERVAL 4
 #define BOSS_BULLET_SPAWN_INTERVAL 30
 #define BOSS_BULLETS_PER_WAVE                                                  \
   MAX_BOSS_BULLETS // Number of directions in a boss wave attempt
@@ -235,8 +235,8 @@ void spawn_enemies(void) {
       if (!enemies[i].alive) {
         enemies[i].x = rand() % (LCD_W - ENEMY_WIDTH);
         enemies[i].y = rand() % (LCD_H - ENEMY_HEIGHT);
-        enemies[i].dx = (rand() % 2) ? 1 : -1;
-        enemies[i].dy = (rand() % 2) ? 1 : -1;
+        enemies[i].dx = (rand() % 2) ? 3 : -3;
+        enemies[i].dy = (rand() % 2) ? 3 : -3;
         enemies[i].alive = 1;
         enemies[i].type = (EnemyType)(rand() % 3);
         enemy_count++;
@@ -729,7 +729,7 @@ int main(void) {
 
     // Player shoot
     if (Get_Button(BUTTON_1) && (current_time - last_action_time_button_1) >
-                                    BUTTON_ACTION_COOLDOWN_TICKS / 6) {
+                                    BUTTON_ACTION_COOLDOWN_TICKS / 8) {
       player_shoot();
       last_action_time_button_1 = current_time;
     }
@@ -743,9 +743,8 @@ int main(void) {
     move_bullet();
 
     // --- DRAW PHASE ---
-    draw();
-
     fps_entity();
+    draw();
 
     // --- ERASE PHASE ---
     erase_origin();
