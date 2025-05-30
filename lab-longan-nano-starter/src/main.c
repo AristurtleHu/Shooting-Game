@@ -8,7 +8,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 // Game Constants
-#define MAX_ENEMIES 0
+#define MAX_ENEMIES 5
 #define MAX_BOSS_BULLETS 40          // Bullets spawned by the central boss site
 #define MAX_REGULAR_ENEMY_BULLETS 33 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
@@ -279,10 +279,8 @@ int main(void) {
             if (!enemy_bullets[j].alive) {
               float ex_center = enemies[i].x + ENEMY_CENTER_OFFSET;
               float ey_center = enemies[i].y + ENEMY_CENTER_OFFSET;
-              float px_center = player_x + player_center_offset;
-              float py_center = player_y + player_center_offset;
-              float dx_bullet = px_center - ex_center;
-              float dy_bullet = py_center - ey_center;
+              float dx_bullet = 1;
+              float dy_bullet = 0.2f;
               float len_bullet =
                   sqrtf(dx_bullet * dx_bullet + dy_bullet * dy_bullet);
               if (len_bullet < 1e-3f)
