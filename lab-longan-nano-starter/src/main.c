@@ -8,7 +8,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 // Game Constants
-#define MAX_ENEMIES 10
+#define MAX_ENEMIES 5
 #define MAX_ENEMY_BULLETS 12
 #define MAX_PLAYER_BULLETS 300
 
@@ -23,8 +23,8 @@
 #define PLAYER_BULLET_COOLDOWN_FRAMES 8
 #define PLAYER_BULLET_CENTER_OFFSET (PLAYER_BULLET_DRAW_SIZE / 2)
 
-#define ENEMY_BULLET_SPEED 1.5f
-#define BOSS_BULLET_SPEED 1.5f
+#define ENEMY_BULLET_SPEED 2.0f
+#define BOSS_BULLET_SPEED 2.5f
 
 #define BULLET_CIRCLE_DRAW_SIZE 3
 #define BULLET_STRAIGHT_DRAW_SIZE 4
@@ -33,7 +33,7 @@
 #define ENEMY_SPAWN_INTERVAL 50
 #define ENEMY_SHOOT_INTERVAL 40
 #define BOSS_BULLET_SPAWN_INTERVAL 30
-#define BOSS_BULLETS_PER_WAVE 60
+#define BOSS_BULLETS_PER_WAVE 300
 
 #define BOSS_SITE_WIDTH 12
 #define BOSS_SITE_HEIGHT 12
@@ -327,8 +327,7 @@ int main(void) {
     // Boss bullet spawn
     static int bullet_spawn_timer = 0;
     bullet_spawn_timer++;
-    if (bullet_spawn_timer > BOSS_BULLET_SPAWN_INTERVAL &&
-        bullet_count < MAX_ENEMY_BULLETS) {
+    if (bullet_spawn_timer > BOSS_BULLET_SPAWN_INTERVAL) {
       float angle_step = 2 * 3.1415926f / BOSS_BULLETS_PER_WAVE;
       for (int b = 0;
            b < BOSS_BULLETS_PER_WAVE && bullet_count < MAX_ENEMY_BULLETS; ++b) {
