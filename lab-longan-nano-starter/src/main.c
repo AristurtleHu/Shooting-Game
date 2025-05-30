@@ -131,15 +131,12 @@ int main(void) {
   // Boss Bullet structure
   typedef struct {
     float x, y;
-    float dx, dy;
     int alive;
     float prev_x, prev_y;
     int prev_alive;
-    BulletType type;
-    float t;              // time for sine/spiral
-    float base_x, base_y; // origin for sine/spiral path
+    float t;              // time for spiral
+    float base_x, base_y; // origin for spiral path
     float angle;          // main direction for sine, initial angle for spiral
-    float path_speed;     // Speed along main path for SINE bullets
   } BossBullet;
   BossBullet boss_bullets[MAX_BOSS_BULLETS] = {0};
   int boss_bullet_count = 0;
@@ -358,26 +355,10 @@ int main(void) {
             float angle = b * angle_step;
             boss_bullets[i].x = BOSS_CENTER_X - BULLET_VISUAL_OFFSET;
             boss_bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET;
-            boss_bullets[i].dx = BOSS_BULLET_SPEED * cosf(angle);
-            boss_bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
-            boss_bullets[i].path_speed = 0.0f;
-
-            if (0) {
-              boss_bullets[i].type = BULLET_TYPE_CIRCLE;
-            } else if (0) {
-              boss_bullets[i].type = BULLET_TYPE_SINE;
-              boss_bullets[i].base_x = boss_bullets[i].x;
-              boss_bullets[i].base_y = boss_bullets[i].y;
-              boss_bullets[i].t = 0;
-              boss_bullets[i].angle = angle;
-              boss_bullets[i].path_speed = BOSS_BULLET_SPEED;
-            } else {
-              boss_bullets[i].type = BULLET_TYPE_SPIRAL;
-              boss_bullets[i].base_x = BOSS_CENTER_X;
-              boss_bullets[i].base_y = BOSS_CENTER_Y;
-              boss_bullets[i].t = 0;
-              boss_bullets[i].angle = angle;
-            }
+            boss_bullets[i].base_x = BOSS_CENTER_X;
+            boss_bullets[i].base_y = BOSS_CENTER_Y;
+            boss_bullets[i].t = 0;
+            boss_bullets[i].angle = angle;
             boss_bullets[i].alive = 1;
             boss_bullet_count++;
             break;
@@ -390,41 +371,19 @@ int main(void) {
     // Update boss bullets
     for (int i = 0; i < MAX_BOSS_BULLETS; ++i) {
       if (boss_bullets[i].alive) {
-        if (boss_bullets[i].type == BULLET_TYPE_CIRCLE ||
-            boss_bullets[i].type == BULLET_TYPE_STRAIGHT) {
-          boss_bullets[i].x += boss_bullets[i].dx;
-          boss_bullets[i].y += boss_bullets[i].dy;
-        } else if (boss_bullets[i].type == BULLET_TYPE_SINE) {
-          boss_bullets[i].t += 1.0f;
-          float freq = 0.15f;
-          float amp = 12.0f;
-          float main_dir_x = cosf(boss_bullets[i].angle);
-          float main_dir_y = sinf(boss_bullets[i].angle);
-          float current_path_x =
-              boss_bullets[i].base_x +
-              main_dir_x * boss_bullets[i].path_speed * boss_bullets[i].t;
-          float current_path_y =
-              boss_bullets[i].base_y +
-              main_dir_y * boss_bullets[i].path_speed * boss_bullets[i].t;
-          float perp_x = -main_dir_y;
-          float perp_y = main_dir_x;
-          float offset = amp * sinf(boss_bullets[i].t * freq);
-          boss_bullets[i].x = current_path_x + perp_x * offset;
-          boss_bullets[i].y = current_path_y + perp_y * offset;
-        } else if (boss_bullets[i].type == BULLET_TYPE_SPIRAL) {
-          boss_bullets[i].t += 1.0f;
-          float spiral_growth_rate = 0.7f;
-          float spiral_angular_speed = 0.12f;
-          float current_radius = 10.0f + boss_bullets[i].t * spiral_growth_rate;
-          float current_angle =
-              boss_bullets[i].angle + boss_bullets[i].t * spiral_angular_speed;
-          boss_bullets[i].x = boss_bullets[i].base_x +
-                              current_radius * cosf(current_angle) -
-                              BULLET_VISUAL_OFFSET;
-          boss_bullets[i].y = boss_bullets[i].base_y +
-                              current_radius * sinf(current_angle) -
-                              BULLET_VISUAL_OFFSET;
-        }
+        boss_bullets[i].t += 1.0f;
+        float spiral_growth_rate = 0.7f;
+        float spiral_angular_speed = 0.12f;
+        float current_radius = 10.0f + boss_bullets[i].t * spiral_growth_rate;
+        float current_angle =
+            boss_bullets[i].angle + boss_bullets[i].t * spiral_angular_speed;
+        boss_bullets[i].x = boss_bullets[i].base_x +
+                            current_radius * cosf(current_angle) -
+                            BULLET_VISUAL_OFFSET;
+        boss_bullets[i].y = boss_bullets[i].base_y +
+                            current_radius * sinf(current_angle) -
+                            BULLET_VISUAL_OFFSET;
+
         if (boss_bullets[i].x < -BULLET_STRAIGHT_DRAW_SIZE ||
             boss_bullets[i].x > LCD_W ||
             boss_bullets[i].y < -BULLET_STRAIGHT_DRAW_SIZE ||
@@ -557,26 +516,12 @@ int main(void) {
       if (boss_bullets[i].alive) {
         int bx_int = (int)boss_bullets[i].x;
         int by_int = (int)boss_bullets[i].y;
-        if (boss_bullets[i].type == BULLET_TYPE_CIRCLE) {
-          LCD_Fill(bx_int, by_int, bx_int + BULLET_CIRCLE_DRAW_SIZE - 1,
-                   by_int + BULLET_CIRCLE_DRAW_SIZE - 1, WHITE);
-        } else if (boss_bullets[i].type == BULLET_TYPE_STRAIGHT) {
-          LCD_Fill(bx_int, by_int, bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
-                   by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, MAGENTA);
-        } else if (boss_bullets[i].type == BULLET_TYPE_SINE) {
-          int tri_x[3] = {bx_int + 2, bx_int, bx_int + 4};
-          int tri_y[3] = {by_int, by_int + 4, by_int + 4};
-          LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], CYAN);
-          LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], CYAN);
-          LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], CYAN);
-        } else if (boss_bullets[i].type == BULLET_TYPE_SPIRAL) {
-          int d_cx = bx_int + 2;
-          int d_cy = by_int + 2;
-          LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, YELLOW);
-          LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, YELLOW);
-          LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, YELLOW);
-          LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, YELLOW);
-        }
+        int d_cx = bx_int + 2;
+        int d_cy = by_int + 2;
+        LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, YELLOW);
+        LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, YELLOW);
+        LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, YELLOW);
+        LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, YELLOW);
       }
     }
 
@@ -645,8 +590,8 @@ int main(void) {
 
     char entity_str[32];
     char fps_str[32];
-    sprintf(entity_str, "Num: %lu", (long unsigned int)entity_count);
-    sprintf(fps_str, "FPS: %lu", (long unsigned int)fps);
+    sprintf(entity_str, "Num: %03lu", (long unsigned int)entity_count);
+    sprintf(fps_str, "FPS: %02lu", (long unsigned int)fps);
     LCD_ShowString(0, 0, (u8 *)entity_str, WHITE);
     LCD_ShowString(0, 15, (u8 *)fps_str, WHITE);
 
@@ -670,28 +615,12 @@ int main(void) {
       if (boss_bullets[i].prev_alive) {
         int prev_bx_int = (int)boss_bullets[i].prev_x;
         int prev_by_int = (int)boss_bullets[i].prev_y;
-        if (boss_bullets[i].type == BULLET_TYPE_CIRCLE) {
-          LCD_Fill(prev_bx_int, prev_by_int,
-                   prev_bx_int + BULLET_CIRCLE_DRAW_SIZE - 1,
-                   prev_by_int + BULLET_CIRCLE_DRAW_SIZE - 1, BLACK);
-        } else if (boss_bullets[i].type == BULLET_TYPE_STRAIGHT) {
-          LCD_Fill(prev_bx_int, prev_by_int,
-                   prev_bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
-                   prev_by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, BLACK);
-        } else if (boss_bullets[i].type == BULLET_TYPE_SINE) {
-          int tri_x[3] = {prev_bx_int + 2, prev_bx_int, prev_bx_int + 4};
-          int tri_y[3] = {prev_by_int, prev_by_int + 4, prev_by_int + 4};
-          LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], BLACK);
-          LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], BLACK);
-          LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], BLACK);
-        } else if (boss_bullets[i].type == BULLET_TYPE_SPIRAL) {
-          int d_cx = prev_bx_int + 2;
-          int d_cy = prev_by_int + 2;
-          LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, BLACK);
-          LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, BLACK);
-          LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, BLACK);
-          LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, BLACK);
-        }
+        int d_cx = prev_bx_int + 2;
+        int d_cy = prev_by_int + 2;
+        LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, BLACK);
+        LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, BLACK);
+        LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, BLACK);
+        LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, BLACK);
       }
     }
 
@@ -729,17 +658,6 @@ int main(void) {
                  (int)player_bullets[i].prev_y + PLAYER_BULLET_DRAW_SIZE - 1,
                  BLACK);
       }
-    }
-
-    static uint32_t prev_fps = 0, prev_entity_count = 0;
-    if (fps != prev_fps) {
-      // LCD_Fill(30, 17, 60, 30, BLACK); // Clear top area for text
-      prev_fps = fps;
-    }
-
-    if (entity_count != prev_entity_count) {
-      LCD_Fill(30, 0, 66, 15, BLACK);
-      prev_entity_count = entity_count;
     }
 
     // --- STORE STATE PHASE ---
