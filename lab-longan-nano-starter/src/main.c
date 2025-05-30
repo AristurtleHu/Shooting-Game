@@ -9,8 +9,8 @@
 
 // Game Constants
 #define MAX_ENEMIES 5
-#define MAX_BOSS_BULLETS 33 // Bullets spawned by the central boss site
-#define MAX_REGULAR_ENEMY_BULLETS 300 // Bullets spawned by enemies
+#define MAX_BOSS_BULLETS 33          // Bullets spawned by the central boss site
+#define MAX_REGULAR_ENEMY_BULLETS 35 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
 #define PLAYER_SPEED 3
@@ -32,7 +32,7 @@
 #define BULLET_VISUAL_OFFSET 2.0f // Offset for drawing to center the visual
 
 #define ENEMY_SPAWN_INTERVAL 50
-#define ENEMY_SHOOT_INTERVAL 4
+#define ENEMY_SHOOT_INTERVAL 20
 #define BOSS_BULLET_SPAWN_INTERVAL 30
 #define BOSS_BULLETS_PER_WAVE                                                  \
   MAX_BOSS_BULLETS // Number of directions in a boss wave attempt
