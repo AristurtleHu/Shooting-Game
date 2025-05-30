@@ -698,7 +698,6 @@ int main(void) {
     static uint64_t last_action_time_joy_right = 0;
     static uint64_t last_action_time_joy_up = 0;
     static uint64_t last_action_time_joy_down = 0;
-    static uint64_t last_action_time_button_1 = 0;
     uint64_t current_time = get_timer_value();
 
     // Handle player movement
@@ -728,10 +727,8 @@ int main(void) {
     }
 
     // Player shoot
-    if (Get_Button(BUTTON_1) && (current_time - last_action_time_button_1) >
-                                    BUTTON_ACTION_COOLDOWN_TICKS / 8) {
+    if (Get_Button(BUTTON_1)) {
       player_shoot();
-      last_action_time_button_1 = current_time;
     }
 
     spawn_enemies();
