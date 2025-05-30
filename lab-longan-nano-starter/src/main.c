@@ -47,6 +47,9 @@
 #define COLLISION_THRESHOLD_PLAYER_BULLET_ENEMY                                \
   (ENEMY_CENTER_OFFSET + PLAYER_BULLET_CENTER_OFFSET)
 
+#define BUTTON_ACTION_COOLDOWN_TICKS                                           \
+  ((SystemCoreClock / 4 / 1000) * 300) // 300 ms in timer ticks
+
 // Bullet type
 typedef enum {
   BULLET_TYPE_CIRCLE,   // white, circle, straight
@@ -691,18 +694,45 @@ int main(void) {
 
   while (1) {
     // --- GAME LOGIC PHASE ---
-    // Handle player movement
-    if (Get_Button(JOY_LEFT) && player_x > 0)
-      player_x -= PLAYER_SPEED;
-    if (Get_Button(JOY_RIGHT) && player_x < LCD_W - player_size)
-      player_x += PLAYER_SPEED;
-    if (Get_Button(JOY_UP) && player_y > 0)
-      player_y -= PLAYER_SPEED;
-    if (Get_Button(JOY_DOWN) && player_y < LCD_H - player_size)
-      player_y += PLAYER_SPEED;
+    static uint64_t last_action_time_joy_left = 0;
+    static uint64_t last_action_time_joy_right = 0;
+    static uint64_t last_action_time_joy_up = 0;
+    static uint64_t last_action_time_joy_down = 0;
+    static uint64_t last_action_time_button_1 = 0;
+    uint64_t current_time = get_timer_value();
 
-    if (Get_Button(BUTTON_1))
+    // Handle player movement
+    if (Get_Button(JOY_LEFT) && player_x > 0 &&
+        (current_time - last_action_time_joy_left) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_x -= PLAYER_SPEED;
+      last_action_time_joy_left = current_time;
+    }
+    if (Get_Button(JOY_RIGHT) && player_x < LCD_W - player_size &&
+        (current_time - last_action_time_joy_right) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_x += PLAYER_SPEED;
+      last_action_time_joy_right = current_time;
+    }
+    if (Get_Button(JOY_UP) && player_y > 0 &&
+        (current_time - last_action_time_joy_up) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_y -= PLAYER_SPEED;
+      last_action_time_joy_up = current_time;
+    }
+    if (Get_Button(JOY_DOWN) && player_y < LCD_H - player_size &&
+        (current_time - last_action_time_joy_down) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_y += PLAYER_SPEED;
+      last_action_time_joy_down = current_time;
+    }
+
+    // Player shoot
+    if (Get_Button(BUTTON_1) && (current_time - last_action_time_button_1) >
+                                    BUTTON_ACTION_COOLDOWN_TICKS) {
       player_shoot();
+      last_action_time_button_1 = current_time;
+    }
 
     spawn_enemies();
     enemies_shoot();
