@@ -9,7 +9,8 @@
 
 // Game Constants
 #define MAX_ENEMIES 5
-#define MAX_ENEMY_BULLETS 12
+#define MAX_BOSS_BULLETS 21 // Bullets spawned by the central boss site
+#define MAX_REGULAR_ENEMY_BULLETS 300 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
 #define PLAYER_SPEED 3
@@ -23,17 +24,17 @@
 #define PLAYER_BULLET_COOLDOWN_FRAMES 8
 #define PLAYER_BULLET_CENTER_OFFSET (PLAYER_BULLET_DRAW_SIZE / 2)
 
-#define ENEMY_BULLET_SPEED 2.0f
-#define BOSS_BULLET_SPEED 2.5f
+#define ENEMY_BULLET_SPEED 2.0f // Speed for regular enemy bullets
+#define BOSS_BULLET_SPEED 2.5f  // Speed for boss bullets
 
 #define BULLET_CIRCLE_DRAW_SIZE 3
 #define BULLET_STRAIGHT_DRAW_SIZE 4
-#define BULLET_VISUAL_OFFSET 2.0f
+#define BULLET_VISUAL_OFFSET 2.0f // Offset for drawing to center the visual
 
 #define ENEMY_SPAWN_INTERVAL 50
 #define ENEMY_SHOOT_INTERVAL 40
 #define BOSS_BULLET_SPAWN_INTERVAL 30
-#define BOSS_BULLETS_PER_WAVE 300
+#define BOSS_BULLETS_PER_WAVE 99 // Number of directions in a boss wave attempt
 
 #define BOSS_SITE_WIDTH 12
 #define BOSS_SITE_HEIGHT 12
@@ -123,11 +124,10 @@ int main(void) {
     int prev_alive;
     EnemyType type;
   } Enemy;
-  Enemy enemies[MAX_ENEMIES] = {
-      0}; // Initializes all fields to 0, including prev_alive
+  Enemy enemies[MAX_ENEMIES] = {0};
   int enemy_count = 0;
 
-  // Bullet structure (boss/enemy bullets)
+  // Boss Bullet structure
   typedef struct {
     float x, y;
     float dx, dy;
@@ -139,9 +139,25 @@ int main(void) {
     float base_x, base_y; // origin for sine/spiral path
     float angle;          // main direction for sine, initial angle for spiral
     float path_speed;     // Speed along main path for SINE bullets
-  } Bullet;
-  Bullet bullets[MAX_ENEMY_BULLETS] = {0};
-  int bullet_count = 0;
+  } BossBullet;
+  BossBullet boss_bullets[MAX_BOSS_BULLETS] = {0};
+  int boss_bullet_count = 0;
+
+  // Enemy Bullet structure
+  typedef struct {
+    float x, y;
+    float dx, dy;
+    int alive;
+    float prev_x, prev_y;
+    int prev_alive;
+    BulletType type;
+    float t;
+    float base_x, base_y;
+    float angle;
+    float path_speed;
+  } EnemyBullet;
+  EnemyBullet enemy_bullets[MAX_REGULAR_ENEMY_BULLETS] = {0};
+  int enemy_bullet_count = 0;
 
   // Player bullet structure
   typedef struct {
@@ -246,7 +262,7 @@ int main(void) {
           enemies[i].dx = (rand() % 2) ? 1 : -1;
           enemies[i].dy = (rand() % 2) ? 1 : -1;
           enemies[i].alive = 1;
-          enemies[i].type = (EnemyType)(rand() % 3); // Assign random type
+          enemies[i].type = (EnemyType)(rand() % 3);
           enemy_count++;
           break;
         }
@@ -259,9 +275,10 @@ int main(void) {
     enemy_shoot_timer++;
     if (enemy_shoot_timer > ENEMY_SHOOT_INTERVAL) {
       for (int i = 0; i < MAX_ENEMIES; ++i) {
-        if (enemies[i].alive && bullet_count < MAX_ENEMY_BULLETS) {
-          for (int j = 0; j < MAX_ENEMY_BULLETS; ++j) {
-            if (!bullets[j].alive) {
+        if (enemies[i].alive &&
+            enemy_bullet_count < MAX_REGULAR_ENEMY_BULLETS) {
+          for (int j = 0; j < MAX_REGULAR_ENEMY_BULLETS; ++j) {
+            if (!enemy_bullets[j].alive) {
               float ex_center = enemies[i].x + ENEMY_CENTER_OFFSET;
               float ey_center = enemies[i].y + ENEMY_CENTER_OFFSET;
               float px_center = player_x + player_center_offset;
@@ -273,37 +290,40 @@ int main(void) {
               if (len_bullet < 1e-3f)
                 len_bullet = 1.0f;
 
-              bullets[j].x = ex_center - BULLET_VISUAL_OFFSET;
-              bullets[j].y = ey_center - BULLET_VISUAL_OFFSET;
-              bullets[j].alive = 1;
-              bullets[j].t = 0;
-              bullets[j].path_speed = 0.0f; // Default, used by sine
+              enemy_bullets[j].x = ex_center - BULLET_VISUAL_OFFSET;
+              enemy_bullets[j].y = ey_center - BULLET_VISUAL_OFFSET;
+              enemy_bullets[j].alive = 1;
+              enemy_bullets[j].t = 0;
+              enemy_bullets[j].path_speed = 0.0f;
 
               switch (enemies[i].type) {
               case ENEMY_TYPE_NORMAL:
-                bullets[j].type = BULLET_TYPE_STRAIGHT;
-                bullets[j].dx = ENEMY_BULLET_SPEED * dx_bullet / len_bullet;
-                bullets[j].dy = ENEMY_BULLET_SPEED * dy_bullet / len_bullet;
+                enemy_bullets[j].type = BULLET_TYPE_STRAIGHT;
+                enemy_bullets[j].dx =
+                    ENEMY_BULLET_SPEED * dx_bullet / len_bullet;
+                enemy_bullets[j].dy =
+                    ENEMY_BULLET_SPEED * dy_bullet / len_bullet;
                 break;
               case ENEMY_TYPE_SINE_SHOOTER:
-                bullets[j].type = BULLET_TYPE_SINE;
-                bullets[j].base_x = bullets[j].x;
-                bullets[j].base_y = bullets[j].y;
-                bullets[j].angle = atan2f(dy_bullet, dx_bullet);
-                bullets[j].path_speed = ENEMY_BULLET_SPEED;
-                bullets[j].dx = 0;
-                bullets[j].dy = 0;
+                enemy_bullets[j].type = BULLET_TYPE_SINE;
+                enemy_bullets[j].base_x =
+                    enemy_bullets[j].x; // Initial pos for sine path
+                enemy_bullets[j].base_y = enemy_bullets[j].y;
+                enemy_bullets[j].angle = atan2f(dy_bullet, dx_bullet);
+                enemy_bullets[j].path_speed = ENEMY_BULLET_SPEED;
+                enemy_bullets[j].dx = 0;
+                enemy_bullets[j].dy = 0;
                 break;
               case ENEMY_TYPE_SPIRAL_SHOOTER:
-                bullets[j].type = BULLET_TYPE_SPIRAL;
-                bullets[j].base_x = ex_center;
-                bullets[j].base_y = ey_center;
-                bullets[j].angle = atan2f(dy_bullet, dx_bullet);
-                bullets[j].dx = 0;
-                bullets[j].dy = 0;
+                enemy_bullets[j].type = BULLET_TYPE_SPIRAL;
+                enemy_bullets[j].base_x = ex_center; // Spiral from enemy center
+                enemy_bullets[j].base_y = ey_center;
+                enemy_bullets[j].angle = atan2f(dy_bullet, dx_bullet);
+                enemy_bullets[j].dx = 0;
+                enemy_bullets[j].dy = 0;
                 break;
               }
-              bullet_count++;
+              enemy_bullet_count++;
               break;
             }
           }
@@ -324,100 +344,144 @@ int main(void) {
       }
     }
 
-    // Boss bullet spawn
-    static int bullet_spawn_timer = 0;
-    bullet_spawn_timer++;
-    if (bullet_spawn_timer > BOSS_BULLET_SPAWN_INTERVAL) {
+    // Boss bullet spawn (uses boss_bullets array)
+    static int boss_bullet_spawn_timer = 0;
+    boss_bullet_spawn_timer++;
+    if (boss_bullet_spawn_timer > BOSS_BULLET_SPAWN_INTERVAL) {
       float angle_step = 2 * 3.1415926f / BOSS_BULLETS_PER_WAVE;
       for (int b = 0;
-           b < BOSS_BULLETS_PER_WAVE && bullet_count < MAX_ENEMY_BULLETS; ++b) {
-        for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
-          if (!bullets[i].alive) {
+           b < BOSS_BULLETS_PER_WAVE && boss_bullet_count < MAX_BOSS_BULLETS;
+           ++b) {
+        for (int i = 0; i < MAX_BOSS_BULLETS; ++i) {
+          if (!boss_bullets[i].alive) {
             float angle = b * angle_step;
-            bullets[i].x = BOSS_CENTER_X - BULLET_VISUAL_OFFSET;
-            bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET;
-            bullets[i].dx = BOSS_BULLET_SPEED * cosf(angle);
-            bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
-            bullets[i].path_speed = 0.0f;
+            boss_bullets[i].x = BOSS_CENTER_X - BULLET_VISUAL_OFFSET;
+            boss_bullets[i].y = BOSS_CENTER_Y - BULLET_VISUAL_OFFSET;
+            boss_bullets[i].dx = BOSS_BULLET_SPEED * cosf(angle);
+            boss_bullets[i].dy = BOSS_BULLET_SPEED * sinf(angle);
+            boss_bullets[i].path_speed = 0.0f;
 
             if (b % 3 == 0) {
-              bullets[i].type = BULLET_TYPE_CIRCLE;
+              boss_bullets[i].type = BULLET_TYPE_CIRCLE;
             } else if (b % 3 == 1) {
-              bullets[i].type = BULLET_TYPE_SINE;
-              bullets[i].base_x = bullets[i].x;
-              bullets[i].base_y = bullets[i].y;
-              bullets[i].t = 0;
-              bullets[i].angle = angle;
-              bullets[i].path_speed = BOSS_BULLET_SPEED;
+              boss_bullets[i].type = BULLET_TYPE_SINE;
+              boss_bullets[i].base_x = boss_bullets[i].x;
+              boss_bullets[i].base_y = boss_bullets[i].y;
+              boss_bullets[i].t = 0;
+              boss_bullets[i].angle = angle;
+              boss_bullets[i].path_speed = BOSS_BULLET_SPEED;
             } else {
-              bullets[i].type = BULLET_TYPE_SPIRAL;
-              bullets[i].base_x = BOSS_CENTER_X;
-              bullets[i].base_y = BOSS_CENTER_Y;
-              bullets[i].t = 0;
-              bullets[i].angle = angle;
+              boss_bullets[i].type = BULLET_TYPE_SPIRAL;
+              boss_bullets[i].base_x = BOSS_CENTER_X;
+              boss_bullets[i].base_y = BOSS_CENTER_Y;
+              boss_bullets[i].t = 0;
+              boss_bullets[i].angle = angle;
             }
-            bullets[i].alive = 1;
-            bullet_count++;
+            boss_bullets[i].alive = 1;
+            boss_bullet_count++;
             break;
           }
         }
       }
-      bullet_spawn_timer = 0;
+      boss_bullet_spawn_timer = 0;
     }
 
-    // Update boss and enemy bullets
-    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
-      if (bullets[i].alive) {
-        if (bullets[i].type == BULLET_TYPE_CIRCLE ||
-            bullets[i].type == BULLET_TYPE_STRAIGHT) {
-          bullets[i].x += bullets[i].dx;
-          bullets[i].y += bullets[i].dy;
-        } else if (bullets[i].type == BULLET_TYPE_SINE) {
-          bullets[i].t += 1.0f;
+    // Update boss bullets
+    for (int i = 0; i < MAX_BOSS_BULLETS; ++i) {
+      if (boss_bullets[i].alive) {
+        if (boss_bullets[i].type == BULLET_TYPE_CIRCLE ||
+            boss_bullets[i].type == BULLET_TYPE_STRAIGHT) {
+          boss_bullets[i].x += boss_bullets[i].dx;
+          boss_bullets[i].y += boss_bullets[i].dy;
+        } else if (boss_bullets[i].type == BULLET_TYPE_SINE) {
+          boss_bullets[i].t += 1.0f;
           float freq = 0.15f;
           float amp = 12.0f;
-
-          float main_dir_x = cosf(bullets[i].angle);
-          float main_dir_y = sinf(bullets[i].angle);
-
-          float current_center_x =
-              bullets[i].base_x +
-              main_dir_x * bullets[i].path_speed * bullets[i].t;
-          float current_center_y =
-              bullets[i].base_y +
-              main_dir_y * bullets[i].path_speed * bullets[i].t;
-
+          float main_dir_x = cosf(boss_bullets[i].angle);
+          float main_dir_y = sinf(boss_bullets[i].angle);
+          float current_path_x =
+              boss_bullets[i].base_x +
+              main_dir_x * boss_bullets[i].path_speed * boss_bullets[i].t;
+          float current_path_y =
+              boss_bullets[i].base_y +
+              main_dir_y * boss_bullets[i].path_speed * boss_bullets[i].t;
           float perp_x = -main_dir_y;
           float perp_y = main_dir_x;
-          float offset = amp * sinf(bullets[i].t * freq);
-
-          bullets[i].x = current_center_x + perp_x * offset;
-          bullets[i].y = current_center_y + perp_y * offset;
-        } else if (bullets[i].type == BULLET_TYPE_SPIRAL) {
-          bullets[i].t += 1.0f;
+          float offset = amp * sinf(boss_bullets[i].t * freq);
+          boss_bullets[i].x = current_path_x + perp_x * offset;
+          boss_bullets[i].y = current_path_y + perp_y * offset;
+        } else if (boss_bullets[i].type == BULLET_TYPE_SPIRAL) {
+          boss_bullets[i].t += 1.0f;
           float spiral_growth_rate = 0.7f;
           float spiral_angular_speed = 0.12f;
-
-          float current_radius = 10.0f + bullets[i].t * spiral_growth_rate;
+          float current_radius = 10.0f + boss_bullets[i].t * spiral_growth_rate;
           float current_angle =
-              bullets[i].angle + bullets[i].t * spiral_angular_speed;
-
-          bullets[i].x = bullets[i].base_x +
-                         current_radius * cosf(current_angle) -
-                         BULLET_VISUAL_OFFSET;
-          bullets[i].y = bullets[i].base_y +
-                         current_radius * sinf(current_angle) -
-                         BULLET_VISUAL_OFFSET;
+              boss_bullets[i].angle + boss_bullets[i].t * spiral_angular_speed;
+          boss_bullets[i].x = boss_bullets[i].base_x +
+                              current_radius * cosf(current_angle) -
+                              BULLET_VISUAL_OFFSET;
+          boss_bullets[i].y = boss_bullets[i].base_y +
+                              current_radius * sinf(current_angle) -
+                              BULLET_VISUAL_OFFSET;
         }
-        if (bullets[i].x < -BULLET_STRAIGHT_DRAW_SIZE || bullets[i].x > LCD_W ||
-            bullets[i].y < -BULLET_STRAIGHT_DRAW_SIZE || bullets[i].y > LCD_H) {
-          bullets[i].alive = 0;
-          bullet_count--;
+        if (boss_bullets[i].x < -BULLET_STRAIGHT_DRAW_SIZE ||
+            boss_bullets[i].x > LCD_W ||
+            boss_bullets[i].y < -BULLET_STRAIGHT_DRAW_SIZE ||
+            boss_bullets[i].y > LCD_H) {
+          boss_bullets[i].alive = 0;
+          boss_bullet_count--;
         }
       }
     }
 
-    // Update player bullets (movement, collision, off-screen removal)
+    // Update regular enemy bullets
+    for (int i = 0; i < MAX_REGULAR_ENEMY_BULLETS; ++i) {
+      if (enemy_bullets[i].alive) {
+        if (enemy_bullets[i].type == BULLET_TYPE_STRAIGHT) {
+          enemy_bullets[i].x += enemy_bullets[i].dx;
+          enemy_bullets[i].y += enemy_bullets[i].dy;
+        } else if (enemy_bullets[i].type == BULLET_TYPE_SINE) {
+          enemy_bullets[i].t += 1.0f;
+          float freq = 0.15f;
+          float amp = 8.0f; // Potentially different params for enemy sine
+          float main_dir_x = cosf(enemy_bullets[i].angle);
+          float main_dir_y = sinf(enemy_bullets[i].angle);
+          float current_path_x =
+              enemy_bullets[i].base_x +
+              main_dir_x * enemy_bullets[i].path_speed * enemy_bullets[i].t;
+          float current_path_y =
+              enemy_bullets[i].base_y +
+              main_dir_y * enemy_bullets[i].path_speed * enemy_bullets[i].t;
+          float perp_x = -main_dir_y;
+          float perp_y = main_dir_x;
+          float offset = amp * sinf(enemy_bullets[i].t * freq);
+          enemy_bullets[i].x = current_path_x + perp_x * offset;
+          enemy_bullets[i].y = current_path_y + perp_y * offset;
+        } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
+          enemy_bullets[i].t += 1.0f;
+          float spiral_growth_rate = 0.5f;
+          float spiral_angular_speed = 0.15f; // Different params
+          float current_radius = 5.0f + enemy_bullets[i].t * spiral_growth_rate;
+          float current_angle = enemy_bullets[i].angle +
+                                enemy_bullets[i].t * spiral_angular_speed;
+          enemy_bullets[i].x = enemy_bullets[i].base_x +
+                               current_radius * cosf(current_angle) -
+                               BULLET_VISUAL_OFFSET;
+          enemy_bullets[i].y = enemy_bullets[i].base_y +
+                               current_radius * sinf(current_angle) -
+                               BULLET_VISUAL_OFFSET;
+        }
+        if (enemy_bullets[i].x < -BULLET_STRAIGHT_DRAW_SIZE ||
+            enemy_bullets[i].x > LCD_W ||
+            enemy_bullets[i].y < -BULLET_STRAIGHT_DRAW_SIZE ||
+            enemy_bullets[i].y > LCD_H) {
+          enemy_bullets[i].alive = 0;
+          enemy_bullet_count--;
+        }
+      }
+    }
+
+    // Update player bullets
     for (int i = 0; i < MAX_PLAYER_BULLETS; ++i) {
       if (player_bullets[i].alive) {
         player_bullets[i].x += player_bullets[i].dx;
@@ -487,34 +551,55 @@ int main(void) {
       }
     }
 
-    // Draw boss and enemy bullets
-    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
-      if (bullets[i].alive) {
-        int bx_int = (int)bullets[i].x;
-        int by_int = (int)bullets[i].y;
-        if (bullets[i].type == BULLET_TYPE_CIRCLE) {
+    // Draw boss bullets
+    for (int i = 0; i < MAX_BOSS_BULLETS; ++i) {
+      if (boss_bullets[i].alive) {
+        int bx_int = (int)boss_bullets[i].x;
+        int by_int = (int)boss_bullets[i].y;
+        if (boss_bullets[i].type == BULLET_TYPE_CIRCLE) {
           LCD_Fill(bx_int, by_int, bx_int + BULLET_CIRCLE_DRAW_SIZE - 1,
                    by_int + BULLET_CIRCLE_DRAW_SIZE - 1, WHITE);
-        } else if (bullets[i].type == BULLET_TYPE_STRAIGHT) {
+        } else if (boss_bullets[i].type == BULLET_TYPE_STRAIGHT) {
           LCD_Fill(bx_int, by_int, bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
                    by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, MAGENTA);
-        } else if (bullets[i].type == BULLET_TYPE_SINE) {
+        } else if (boss_bullets[i].type == BULLET_TYPE_SINE) {
           int tri_x[3] = {bx_int + 2, bx_int, bx_int + 4};
           int tri_y[3] = {by_int, by_int + 4, by_int + 4};
           LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], CYAN);
           LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], CYAN);
           LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], CYAN);
-        } else if (bullets[i].type == BULLET_TYPE_SPIRAL) {
-          int diamond_cx = bx_int + 2;
-          int diamond_cy = by_int + 2;
-          LCD_DrawLine(diamond_cx, diamond_cy - 3, diamond_cx + 3, diamond_cy,
-                       YELLOW);
-          LCD_DrawLine(diamond_cx + 3, diamond_cy, diamond_cx, diamond_cy + 3,
-                       YELLOW);
-          LCD_DrawLine(diamond_cx, diamond_cy + 3, diamond_cx - 3, diamond_cy,
-                       YELLOW);
-          LCD_DrawLine(diamond_cx - 3, diamond_cy, diamond_cx, diamond_cy - 3,
-                       YELLOW);
+        } else if (boss_bullets[i].type == BULLET_TYPE_SPIRAL) {
+          int d_cx = bx_int + 2;
+          int d_cy = by_int + 2;
+          LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, YELLOW);
+          LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, YELLOW);
+          LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, YELLOW);
+          LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, YELLOW);
+        }
+      }
+    }
+
+    // Draw regular enemy bullets
+    for (int i = 0; i < MAX_REGULAR_ENEMY_BULLETS; ++i) {
+      if (enemy_bullets[i].alive) {
+        int bx_int = (int)enemy_bullets[i].x;
+        int by_int = (int)enemy_bullets[i].y;
+        if (enemy_bullets[i].type == BULLET_TYPE_STRAIGHT) {
+          LCD_Fill(bx_int, by_int, bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
+                   by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, MAGENTA);
+        } else if (enemy_bullets[i].type == BULLET_TYPE_SINE) {
+          int tri_x[3] = {bx_int + 2, bx_int, bx_int + 4};
+          int tri_y[3] = {by_int, by_int + 4, by_int + 4};
+          LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], CYAN);
+          LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], CYAN);
+          LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], CYAN);
+        } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
+          int d_cx = bx_int + 2;
+          int d_cy = by_int + 2;
+          LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, YELLOW);
+          LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, YELLOW);
+          LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, YELLOW);
+          LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, YELLOW);
         }
       }
     }
@@ -528,19 +613,15 @@ int main(void) {
       }
     }
 
-    // Draw boss site (static, redraw to ensure it's not corrupted by erasures)
+    // Draw boss site
     LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
              BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
-    // Draw text
-    uint32_t entity_count = bullet_count + player_bullet_count;
-
-    static uint64_t prev_frame_mtime_ns =
-        0; // Stores mtime of the previous frame
-    static uint8_t fps_first_calc_done =
-        0;        // Flag to handle the first frame calculation
-    uint32_t fps; // Calculated FPS will be stored here
-
+    uint32_t entity_count =
+        boss_bullet_count + enemy_bullet_count + player_bullet_count;
+    static uint64_t prev_frame_mtime_ns = 0;
+    static uint8_t fps_first_calc_done = 0;
+    uint32_t fps;
     uint64_t current_frame_mtime_ns = get_timer_value();
 
     if (!fps_first_calc_done) {
@@ -582,36 +663,58 @@ int main(void) {
       }
     }
 
-    // Erase enemy bullets at their previous positions if they were alive
-    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
-      if (bullets[i].prev_alive) {
-        int prev_bx_int = (int)bullets[i].prev_x;
-        int prev_by_int = (int)bullets[i].prev_y;
-        if (bullets[i].type == BULLET_TYPE_CIRCLE) {
+    // Erase boss bullets
+    for (int i = 0; i < MAX_BOSS_BULLETS; ++i) {
+      if (boss_bullets[i].prev_alive) {
+        int prev_bx_int = (int)boss_bullets[i].prev_x;
+        int prev_by_int = (int)boss_bullets[i].prev_y;
+        if (boss_bullets[i].type == BULLET_TYPE_CIRCLE) {
           LCD_Fill(prev_bx_int, prev_by_int,
                    prev_bx_int + BULLET_CIRCLE_DRAW_SIZE - 1,
                    prev_by_int + BULLET_CIRCLE_DRAW_SIZE - 1, BLACK);
-        } else if (bullets[i].type == BULLET_TYPE_STRAIGHT) {
+        } else if (boss_bullets[i].type == BULLET_TYPE_STRAIGHT) {
           LCD_Fill(prev_bx_int, prev_by_int,
                    prev_bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
                    prev_by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, BLACK);
-        } else if (bullets[i].type == BULLET_TYPE_SINE) {
+        } else if (boss_bullets[i].type == BULLET_TYPE_SINE) {
           int tri_x[3] = {prev_bx_int + 2, prev_bx_int, prev_bx_int + 4};
           int tri_y[3] = {prev_by_int, prev_by_int + 4, prev_by_int + 4};
           LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], BLACK);
           LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], BLACK);
           LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], BLACK);
-        } else if (bullets[i].type == BULLET_TYPE_SPIRAL) {
-          int diamond_cx = prev_bx_int + 2;
-          int diamond_cy = prev_by_int + 2;
-          LCD_DrawLine(diamond_cx, diamond_cy - 3, diamond_cx + 3, diamond_cy,
-                       BLACK);
-          LCD_DrawLine(diamond_cx + 3, diamond_cy, diamond_cx, diamond_cy + 3,
-                       BLACK);
-          LCD_DrawLine(diamond_cx, diamond_cy + 3, diamond_cx - 3, diamond_cy,
-                       BLACK);
-          LCD_DrawLine(diamond_cx - 3, diamond_cy, diamond_cx, diamond_cy - 3,
-                       BLACK);
+        } else if (boss_bullets[i].type == BULLET_TYPE_SPIRAL) {
+          int d_cx = prev_bx_int + 2;
+          int d_cy = prev_by_int + 2;
+          LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, BLACK);
+          LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, BLACK);
+          LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, BLACK);
+          LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, BLACK);
+        }
+      }
+    }
+
+    // Erase regular enemy bullets
+    for (int i = 0; i < MAX_REGULAR_ENEMY_BULLETS; ++i) {
+      if (enemy_bullets[i].prev_alive) {
+        int prev_bx_int = (int)enemy_bullets[i].prev_x;
+        int prev_by_int = (int)enemy_bullets[i].prev_y;
+        if (enemy_bullets[i].type == BULLET_TYPE_STRAIGHT) {
+          LCD_Fill(prev_bx_int, prev_by_int,
+                   prev_bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
+                   prev_by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, BLACK);
+        } else if (enemy_bullets[i].type == BULLET_TYPE_SINE) {
+          int tri_x[3] = {prev_bx_int + 2, prev_bx_int, prev_bx_int + 4};
+          int tri_y[3] = {prev_by_int, prev_by_int + 4, prev_by_int + 4};
+          LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], BLACK);
+          LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], BLACK);
+          LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], BLACK);
+        } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
+          int d_cx = prev_bx_int + 2;
+          int d_cy = prev_by_int + 2;
+          LCD_DrawLine(d_cx, d_cy - 3, d_cx + 3, d_cy, BLACK);
+          LCD_DrawLine(d_cx + 3, d_cy, d_cx, d_cy + 3, BLACK);
+          LCD_DrawLine(d_cx, d_cy + 3, d_cx - 3, d_cy, BLACK);
+          LCD_DrawLine(d_cx - 3, d_cy, d_cx, d_cy - 3, BLACK);
         }
       }
     }
@@ -646,10 +749,15 @@ int main(void) {
       enemies[i].prev_y = enemies[i].y;
       enemies[i].prev_alive = enemies[i].alive;
     }
-    for (int i = 0; i < MAX_ENEMY_BULLETS; ++i) {
-      bullets[i].prev_x = bullets[i].x;
-      bullets[i].prev_y = bullets[i].y;
-      bullets[i].prev_alive = bullets[i].alive;
+    for (int i = 0; i < MAX_BOSS_BULLETS; ++i) {
+      boss_bullets[i].prev_x = boss_bullets[i].x;
+      boss_bullets[i].prev_y = boss_bullets[i].y;
+      boss_bullets[i].prev_alive = boss_bullets[i].alive;
+    }
+    for (int i = 0; i < MAX_REGULAR_ENEMY_BULLETS; ++i) {
+      enemy_bullets[i].prev_x = enemy_bullets[i].x;
+      enemy_bullets[i].prev_y = enemy_bullets[i].y;
+      enemy_bullets[i].prev_alive = enemy_bullets[i].alive;
     }
     for (int i = 0; i < MAX_PLAYER_BULLETS; ++i) {
       player_bullets[i].prev_x = player_bullets[i].x;
