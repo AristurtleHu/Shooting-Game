@@ -9,8 +9,8 @@
 
 // Game Constants
 #define MAX_ENEMIES 5
-#define MAX_BOSS_BULLETS 40          // Bullets spawned by the central boss site
-#define MAX_REGULAR_ENEMY_BULLETS 20 // Bullets spawned by enemies
+#define MAX_BOSS_BULLETS 66          // Bullets spawned by the central boss site
+#define MAX_REGULAR_ENEMY_BULLETS 30 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
 #define PLAYER_SPEED 3
@@ -24,8 +24,8 @@
 #define PLAYER_BULLET_COOLDOWN_FRAMES 8
 #define PLAYER_BULLET_CENTER_OFFSET (PLAYER_BULLET_DRAW_SIZE / 2)
 
-#define ENEMY_BULLET_SPEED 2.0f // Speed for regular enemy bullets
-#define BOSS_BULLET_SPEED 2.5f  // Speed for boss bullets
+#define ENEMY_BULLET_SPEED 2.5f // Speed for regular enemy bullets
+#define BOSS_BULLET_SPEED 3.5f  // Speed for boss bullets
 
 #define BULLET_CIRCLE_DRAW_SIZE 3
 #define BULLET_STRAIGHT_DRAW_SIZE 4
@@ -729,7 +729,7 @@ int main(void) {
 
     // Player shoot
     if (Get_Button(BUTTON_1) && (current_time - last_action_time_button_1) >
-                                    BUTTON_ACTION_COOLDOWN_TICKS) {
+                                    BUTTON_ACTION_COOLDOWN_TICKS / 6) {
       player_shoot();
       last_action_time_button_1 = current_time;
     }
