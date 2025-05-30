@@ -9,7 +9,7 @@
 
 // Game Constants
 #define MAX_ENEMIES 0
-#define MAX_BOSS_BULLETS 20          // Bullets spawned by the central boss site
+#define MAX_BOSS_BULLETS 40          // Bullets spawned by the central boss site
 #define MAX_REGULAR_ENEMY_BULLETS 33 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
 
@@ -738,7 +738,7 @@ int main(void) {
     }
 
     if (entity_count != prev_entity_count) {
-      LCD_Fill(30, 0, 60, 15, BLACK);
+      LCD_Fill(30, 0, 66, 15, BLACK);
       prev_entity_count = entity_count;
     }
 
