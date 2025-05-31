@@ -810,7 +810,7 @@ void spawn_many_bullets(void) {
   for (int i = 0; i < MANY_BULLET && timer < 5; ++i) {
     if (!bullets[i].alive) {
       bullets[i].x = 1.0f;
-      bullets[i].y = (float)(rand() % (LCD_H - BULLET_STRAIGHT_DRAW_SIZE) + 2);
+      bullets[i].y = (float)(i % (LCD_H - 4) + 2);
       bullets[i].dx = 3.0f;
       bullets[i].dy = 0;
       bullets[i].alive = 1;
