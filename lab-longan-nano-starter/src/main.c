@@ -704,8 +704,7 @@ int main(void) {
   prev_player_y = player_y;
 
   int boom = 60;
-  many_bullets_count++;
-  while (many_bullets_count > 0) {
+  do {
     static uint64_t last_action_time_joy_left = 0;
     static uint64_t last_action_time_joy_right = 0;
     static uint64_t last_action_time_joy_up = 0;
@@ -743,12 +742,17 @@ int main(void) {
     }
     update_many_bullets();
     fps_entity();
+
+    // Draw player
+    LCD_Fill(player_x, player_y, player_x + player_size - 1,
+             player_y + player_size - 1, RED);
+
     draw_many_bullets();
     erase_many_bullets();
     store_many_bullets();
-  }
+  } while (many_bullets_count > 0)
 
-  while (1) {
+      while (1) {
     // --- GAME LOGIC PHASE ---
     static uint64_t last_action_time_joy_left = 0;
     static uint64_t last_action_time_joy_right = 0;
