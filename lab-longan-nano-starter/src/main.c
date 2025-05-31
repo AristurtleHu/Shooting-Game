@@ -782,7 +782,7 @@ void draw_many_bullets(void) {
     if (bullets[i].alive) {
       int bx_int = (int)bullets[i].x;
       int by_int = (int)bullets[i].y;
-      LCD_Fill(bx_int, by_int, bx_int + 1, by_int + 1, WHITE);
+      LCD_DrawPoint(bx_int, by_int, WHITE);
     }
   }
 }
@@ -839,8 +839,7 @@ void erase_many_bullets(void) {
     if (bullets[i].prev_alive) {
       int prev_bx_int = (int)bullets[i].prev_x;
       int prev_by_int = (int)bullets[i].prev_y;
-      LCD_Fill(prev_bx_int, prev_by_int, prev_bx_int + 1, prev_by_int + 1,
-               BLACK);
+      LCD_DrawPoint(prev_bx_int, prev_by_int, BLACK);
     }
   }
 }
