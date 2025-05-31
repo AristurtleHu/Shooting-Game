@@ -751,9 +751,9 @@ int main(void) {
     erase_many_bullets();
     store_many_bullets();
     delay_1ms(5);
-  } while (many_bullets_count > 0)
+  } while (many_bullets_count > 0);
 
-      while (1) {
+  while (1) {
     // --- GAME LOGIC PHASE ---
     static uint64_t last_action_time_joy_left = 0;
     static uint64_t last_action_time_joy_right = 0;
