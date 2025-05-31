@@ -515,7 +515,7 @@ void draw(void) {
         int tri_y[3] = {by_int, by_int + 4, by_int + 4};
         LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], CYAN);
         LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], CYAN);
-        LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], CYAN);
+        LCD_DrawLine(tri_x[0], tri_y[0], tri_x[2], tri_y[2], CYAN);
       } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
         int d_cx = bx_int + 2;
         int d_cy = by_int + 2;
@@ -537,8 +537,8 @@ void draw(void) {
   }
 
   // Draw boss site
-  LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
-           BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
+  // LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
+  //          BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 }
 
 void fps_entity(void) {
@@ -619,7 +619,7 @@ void erase_origin(void) {
         int tri_y[3] = {prev_by_int, prev_by_int + 4, prev_by_int + 4};
         LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], BLACK);
         LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], BLACK);
-        LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], BLACK);
+        LCD_DrawLine(tri_x[0], tri_y[0], tri_x[2], tri_y[2], BLACK);
       } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
         int d_cx = prev_bx_int + 2;
         int d_cy = prev_by_int + 2;
@@ -682,8 +682,8 @@ int main(void) {
   LCD_Clear(BLACK);
 
   // Initial draw of static elements
-  LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
-           BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
+  // LCD_Fill(BOSS_SITE_X, BOSS_SITE_Y, BOSS_SITE_X + BOSS_SITE_WIDTH - 1,
+  //          BOSS_SITE_Y + BOSS_SITE_HEIGHT - 1, YELLOW);
 
   // Initial player draw and prev state setup
   LCD_Fill(player_x, player_y, player_x + player_size - 1,
