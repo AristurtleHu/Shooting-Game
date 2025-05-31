@@ -129,7 +129,8 @@ PlayerBullet player_bullets[MAX_PLAYER_BULLETS];
 int player_bullet_count;
 int player_bullet_cooldown;
 
-EnemyBullet bullets[260];
+#define MANY_BULLET 270
+EnemyBullet bullets[MANY_BULLET];
 int many_bullets_count;
 
 void Inp_init(void) {
@@ -703,7 +704,7 @@ int main(void) {
   prev_player_x = player_x;
   prev_player_y = player_y;
 
-  int boom = 60;
+  int boom = 80;
 
   while (1) {
     // --- GAME LOGIC PHASE ---
@@ -778,7 +779,7 @@ int main(void) {
 
 void draw_many_bullets(void) {
   // Draw bullets at new
-  for (int i = 0; i < 260; ++i) {
+  for (int i = 0; i < MANY_BULLET; ++i) {
     if (bullets[i].alive) {
       int bx_int = (int)bullets[i].x;
       int by_int = (int)bullets[i].y;
@@ -790,7 +791,7 @@ void draw_many_bullets(void) {
 void update_many_bullets(void) {
 
   // Update bullets
-  for (int i = 0; i < 260; ++i) {
+  for (int i = 0; i < MANY_BULLET; ++i) {
     if (bullets[i].alive) {
       bullets[i].x += bullets[i].dx;
 
@@ -806,16 +807,11 @@ void update_many_bullets(void) {
 void spawn_many_bullets(void) {
   // Spawn new bullets
   int timer = 0;
-  for (int i = 0; i < 260 && timer < 5; ++i) {
+  for (int i = 0; i < MANY_BULLET && timer < 5; ++i) {
     if (!bullets[i].alive) {
       bullets[i].x = 1.0f;
       bullets[i].y = (float)(rand() % (LCD_H - BULLET_STRAIGHT_DRAW_SIZE) + 2);
-      float dx_bullet = 1;
-      float dy_bullet = 0.2f;
-      float len_bullet = sqrtf(dx_bullet * dx_bullet + dy_bullet * dy_bullet);
-      if (len_bullet < 1e-3f)
-        len_bullet = 1.0f;
-      bullets[i].dx = ENEMY_BULLET_SPEED * dx_bullet / len_bullet;
+      bullets[i].dx = 3.0f;
       bullets[i].dy = 0;
       bullets[i].alive = 1;
 
@@ -826,7 +822,7 @@ void spawn_many_bullets(void) {
 }
 
 void store_many_bullets(void) {
-  for (int i = 0; i < 260; ++i) {
+  for (int i = 0; i < MANY_BULLET; ++i) {
     bullets[i].prev_x = bullets[i].x;
     bullets[i].prev_y = bullets[i].y;
     bullets[i].prev_alive = bullets[i].alive;
@@ -835,7 +831,7 @@ void store_many_bullets(void) {
 
 void erase_many_bullets(void) {
   // Erase bullets from old
-  for (int i = 0; i < 260; ++i) {
+  for (int i = 0; i < MANY_BULLET; ++i) {
     if (bullets[i].prev_alive) {
       int prev_bx_int = (int)bullets[i].prev_x;
       int prev_by_int = (int)bullets[i].prev_y;
