@@ -515,7 +515,7 @@ void draw(void) {
         int tri_y[3] = {by_int, by_int + 4, by_int + 4};
         LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], CYAN);
         LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], CYAN);
-        LCD_DrawLine(tri_x[0], tri_y[0], tri_x[2], tri_y[2], CYAN);
+        LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], CYAN);
       } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
         int d_cx = bx_int + 2;
         int d_cy = by_int + 2;
@@ -619,7 +619,7 @@ void erase_origin(void) {
         int tri_y[3] = {prev_by_int, prev_by_int + 4, prev_by_int + 4};
         LCD_DrawLine(tri_x[0], tri_y[0], tri_x[1], tri_y[1], BLACK);
         LCD_DrawLine(tri_x[1], tri_y[1], tri_x[2], tri_y[2], BLACK);
-        LCD_DrawLine(tri_x[0], tri_y[0], tri_x[2], tri_y[2], BLACK);
+        LCD_DrawLine(tri_x[2], tri_y[2], tri_x[0], tri_y[0], BLACK);
       } else if (enemy_bullets[i].type == BULLET_TYPE_SPIRAL) {
         int d_cx = prev_bx_int + 2;
         int d_cy = prev_by_int + 2;
