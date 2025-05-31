@@ -8,7 +8,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 // Game Constants
-#define MAX_ENEMIES 5
+#define MAX_ENEMIES 3
 #define MAX_BOSS_BULLETS 20          // Bullets spawned by the central boss site
 #define MAX_REGULAR_ENEMY_BULLETS 35 // Bullets spawned by enemies
 #define MAX_PLAYER_BULLETS 300
@@ -243,7 +243,7 @@ void spawn_enemies(void) {
         enemies[i].dx = (rand() % 2) ? 3 : -3;
         enemies[i].dy = (rand() % 2) ? 3 : -3;
         enemies[i].alive = 1;
-        enemies[i].type = (EnemyType)(rand() % 3);
+        enemies[i].type = i;
         enemy_count++;
         break;
       }
