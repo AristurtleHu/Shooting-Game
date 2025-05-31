@@ -705,47 +705,12 @@ int main(void) {
 
   int boom = 60;
   do {
-    static uint64_t last_action_time_joy_left = 0;
-    static uint64_t last_action_time_joy_right = 0;
-    static uint64_t last_action_time_joy_up = 0;
-    static uint64_t last_action_time_joy_down = 0;
-    uint64_t current_time = get_timer_value();
-
-    // Handle player movement
-    if (Get_Button(JOY_LEFT) && player_x > 0 &&
-        (current_time - last_action_time_joy_left) >
-            BUTTON_ACTION_COOLDOWN_TICKS) {
-      player_x -= PLAYER_SPEED;
-      last_action_time_joy_left = current_time;
-    }
-    if (Get_Button(JOY_RIGHT) && player_x < LCD_W - player_size &&
-        (current_time - last_action_time_joy_right) >
-            BUTTON_ACTION_COOLDOWN_TICKS) {
-      player_x += PLAYER_SPEED;
-      last_action_time_joy_right = current_time;
-    }
-    if (Get_Button(JOY_UP) && player_y > 0 &&
-        (current_time - last_action_time_joy_up) >
-            BUTTON_ACTION_COOLDOWN_TICKS) {
-      player_y -= PLAYER_SPEED;
-      last_action_time_joy_up = current_time;
-    }
-    if (Get_Button(JOY_DOWN) && player_y < LCD_H - player_size &&
-        (current_time - last_action_time_joy_down) >
-            BUTTON_ACTION_COOLDOWN_TICKS) {
-      player_y += PLAYER_SPEED;
-      last_action_time_joy_down = current_time;
-    }
     if (boom > 0) {
       boom--;
       spawn_many_bullets(); // for 256
     }
     update_many_bullets();
     fps_entity();
-
-    // Draw player
-    LCD_Fill(player_x, player_y, player_x + player_size - 1,
-             player_y + player_size - 1, RED);
 
     draw_many_bullets();
     erase_many_bullets();
@@ -877,9 +842,8 @@ void erase_many_bullets(void) {
     if (bullets[i].prev_alive) {
       int prev_bx_int = (int)bullets[i].prev_x;
       int prev_by_int = (int)bullets[i].prev_y;
-      LCD_Fill(prev_bx_int, prev_by_int,
-               prev_bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
-               prev_by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, BLACK);
+      LCD_Fill(prev_bx_int, prev_by_int, prev_bx_int + 1, prev_by_int + 1,
+               BLACK);
     }
   }
 }
