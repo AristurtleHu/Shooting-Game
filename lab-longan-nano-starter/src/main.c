@@ -750,6 +750,7 @@ int main(void) {
     draw_many_bullets();
     erase_many_bullets();
     store_many_bullets();
+    delay_1ms(5);
   } while (many_bullets_count > 0)
 
       while (1) {
