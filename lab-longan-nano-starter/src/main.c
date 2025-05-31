@@ -685,7 +685,7 @@ int main(void) {
   start();
 
   // Player position
-  player_x = 30, player_y = 40;
+  player_x = 30, player_y = 30;
   player_size = 6;
   player_center_offset = player_size / 2;
 
@@ -704,19 +704,6 @@ int main(void) {
   prev_player_y = player_y;
 
   int boom = 60;
-  do {
-    if (boom > 0) {
-      boom--;
-      spawn_many_bullets(); // for 256
-    }
-    update_many_bullets();
-    fps_entity();
-
-    draw_many_bullets();
-    erase_many_bullets();
-    store_many_bullets();
-    delay_1ms(5);
-  } while (many_bullets_count > 0);
 
   while (1) {
     // --- GAME LOGIC PHASE ---
@@ -757,23 +744,33 @@ int main(void) {
       player_shoot();
     }
 
-    spawn_enemies();
-    enemies_shoot();
-    move_enemies();
+    if (boom > 0) {
+      boom--;
+      spawn_many_bullets(); // for 256
+    }
+    update_many_bullets();
 
-    boss_shoot();
+    if (many_bullets_count == 0) {
+      spawn_enemies();
+      enemies_shoot();
+      move_enemies();
+      boss_shoot();
+    }
 
     move_bullet();
 
     // --- DRAW PHASE ---
     fps_entity();
     draw();
+    draw_many_bullets();
 
     // --- ERASE PHASE ---
     erase_origin();
+    erase_many_bullets();
 
     // --- STORE STATE PHASE ---
     store_state();
+    store_many_bullets();
 
     delay_1ms(5);
   }
