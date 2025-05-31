@@ -54,8 +54,8 @@
 typedef enum {
   BULLET_TYPE_CIRCLE,   // white, circle, straight
   BULLET_TYPE_STRAIGHT, // magenta, square, straight
-  BULLET_TYPE_SINE,     // cyan, triangle, sine wave
-  BULLET_TYPE_SPIRAL    // yellow, diamond, spiral
+  BULLET_TYPE_SINE,     // cyan, T, sine wave
+  BULLET_TYPE_SPIRAL    // yellow, line(4 lines a group), spiral
 } BulletType;
 
 // Enemy type
@@ -128,6 +128,9 @@ int enemy_bullet_count;
 PlayerBullet player_bullets[MAX_PLAYER_BULLETS];
 int player_bullet_count;
 int player_bullet_cooldown;
+
+EnemyBullet bullets[260];
+int many_bullets_count;
 
 void Inp_init(void) {
   rcu_periph_clock_enable(RCU_GPIOA);
@@ -234,7 +237,9 @@ void spawn_enemies(void) {
     for (int i = 0; i < MAX_ENEMIES; ++i) {
       if (!enemies[i].alive) {
         enemies[i].x = rand() % (LCD_W - ENEMY_WIDTH);
-        enemies[i].y = rand() % (LCD_H - ENEMY_HEIGHT);
+        enemies[i].y = rand() % (LCD_H - ENEMY_HEIGHT) + 2;
+        if (enemies[i].y > LCD_H - ENEMY_HEIGHT - 2)
+          enemies[i].y -= ENEMY_HEIGHT;
         enemies[i].dx = (rand() % 2) ? 3 : -3;
         enemies[i].dy = (rand() % 2) ? 3 : -3;
         enemies[i].alive = 1;
@@ -542,8 +547,8 @@ void draw(void) {
 }
 
 void fps_entity(void) {
-  uint32_t entity_count =
-      boss_bullet_count * 4 + enemy_bullet_count + player_bullet_count;
+  uint32_t entity_count = boss_bullet_count * 4 + enemy_bullet_count +
+                          player_bullet_count + many_bullets_count;
   // diamond is 4 of line bullet
 
   static uint64_t prev_frame_mtime_ns = 0;
@@ -668,13 +673,19 @@ void store_state(void) {
   }
 }
 
+void draw_many_bullets(void);
+void update_many_bullets(void);
+void spawn_many_bullets(void);
+void erase_many_bullets(void);
+void store_many_bullets(void);
+
 int main(void) {
   IO_init();
   LCD_Clear(BLACK);
   start();
 
   // Player position
-  player_x = 30, player_y = 30;
+  player_x = 30, player_y = 40;
   player_size = 6;
   player_center_offset = player_size / 2;
 
@@ -691,6 +702,51 @@ int main(void) {
 
   prev_player_x = player_x;
   prev_player_y = player_y;
+
+  int boom = 60;
+  many_bullets_count++;
+  while (many_bullets_count > 0) {
+    static uint64_t last_action_time_joy_left = 0;
+    static uint64_t last_action_time_joy_right = 0;
+    static uint64_t last_action_time_joy_up = 0;
+    static uint64_t last_action_time_joy_down = 0;
+    uint64_t current_time = get_timer_value();
+
+    // Handle player movement
+    if (Get_Button(JOY_LEFT) && player_x > 0 &&
+        (current_time - last_action_time_joy_left) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_x -= PLAYER_SPEED;
+      last_action_time_joy_left = current_time;
+    }
+    if (Get_Button(JOY_RIGHT) && player_x < LCD_W - player_size &&
+        (current_time - last_action_time_joy_right) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_x += PLAYER_SPEED;
+      last_action_time_joy_right = current_time;
+    }
+    if (Get_Button(JOY_UP) && player_y > 0 &&
+        (current_time - last_action_time_joy_up) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_y -= PLAYER_SPEED;
+      last_action_time_joy_up = current_time;
+    }
+    if (Get_Button(JOY_DOWN) && player_y < LCD_H - player_size &&
+        (current_time - last_action_time_joy_down) >
+            BUTTON_ACTION_COOLDOWN_TICKS) {
+      player_y += PLAYER_SPEED;
+      last_action_time_joy_down = current_time;
+    }
+    if (boom > 0) {
+      boom--;
+      spawn_many_bullets(); // for 256
+    }
+    update_many_bullets();
+    fps_entity();
+    draw_many_bullets();
+    erase_many_bullets();
+    store_many_bullets();
+  }
 
   while (1) {
     // --- GAME LOGIC PHASE ---
@@ -750,5 +806,75 @@ int main(void) {
     store_state();
 
     delay_1ms(5);
+  }
+}
+
+void draw_many_bullets(void) {
+  // Draw bullets at new
+  for (int i = 0; i < 260; ++i) {
+    if (bullets[i].alive) {
+      int bx_int = (int)bullets[i].x;
+      int by_int = (int)bullets[i].y;
+      LCD_Fill(bx_int, by_int, bx_int + 1, by_int + 1, WHITE);
+    }
+  }
+}
+
+void update_many_bullets(void) {
+
+  // Update bullets
+  for (int i = 0; i < 260; ++i) {
+    if (bullets[i].alive) {
+      bullets[i].x += bullets[i].dx;
+
+      if (bullets[i].x < -BULLET_STRAIGHT_DRAW_SIZE || bullets[i].x > LCD_W ||
+          bullets[i].y < -BULLET_STRAIGHT_DRAW_SIZE || bullets[i].y > LCD_H) {
+        bullets[i].alive = 0;
+        many_bullets_count--;
+      }
+    }
+  }
+}
+
+void spawn_many_bullets(void) {
+  // Spawn new bullets
+  int timer = 0;
+  for (int i = 0; i < 260 && timer < 5; ++i) {
+    if (!bullets[i].alive) {
+      bullets[i].x = 1.0f;
+      bullets[i].y = (float)(rand() % (LCD_H - BULLET_STRAIGHT_DRAW_SIZE) + 2);
+      float dx_bullet = 1;
+      float dy_bullet = 0.2f;
+      float len_bullet = sqrtf(dx_bullet * dx_bullet + dy_bullet * dy_bullet);
+      if (len_bullet < 1e-3f)
+        len_bullet = 1.0f;
+      bullets[i].dx = ENEMY_BULLET_SPEED * dx_bullet / len_bullet;
+      bullets[i].dy = 0;
+      bullets[i].alive = 1;
+
+      timer++;
+      many_bullets_count++;
+    }
+  }
+}
+
+void store_many_bullets(void) {
+  for (int i = 0; i < 260; ++i) {
+    bullets[i].prev_x = bullets[i].x;
+    bullets[i].prev_y = bullets[i].y;
+    bullets[i].prev_alive = bullets[i].alive;
+  }
+}
+
+void erase_many_bullets(void) {
+  // Erase bullets from old
+  for (int i = 0; i < 260; ++i) {
+    if (bullets[i].prev_alive) {
+      int prev_bx_int = (int)bullets[i].prev_x;
+      int prev_by_int = (int)bullets[i].prev_y;
+      LCD_Fill(prev_bx_int, prev_by_int,
+               prev_bx_int + BULLET_STRAIGHT_DRAW_SIZE - 1,
+               prev_by_int + BULLET_STRAIGHT_DRAW_SIZE - 1, BLACK);
+    }
   }
 }
