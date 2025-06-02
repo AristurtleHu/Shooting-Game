@@ -785,6 +785,11 @@ void draw_many_bullets(void) {
       int by_int = (int)bullets[i].y;
       LCD_DrawPoint(bx_int, by_int, WHITE);
     }
+    if (bullets[i].prev_alive) {
+      int prev_bx_int = (int)bullets[i].prev_x;
+      int prev_by_int = (int)bullets[i].prev_y;
+      LCD_DrawPoint(prev_bx_int, prev_by_int, BLACK);
+    }
   }
 }
 
@@ -811,7 +816,7 @@ void spawn_many_bullets(void) {
     if (!bullets[i].alive) {
       bullets[i].x = 1.0f;
       bullets[i].y = (float)(i % (LCD_H - 4) + 2);
-      bullets[i].dx = 3.0f;
+      bullets[i].dx = 2.0f;
       bullets[i].dy = 0;
       bullets[i].alive = 1;
 
@@ -829,13 +834,4 @@ void store_many_bullets(void) {
   }
 }
 
-void erase_many_bullets(void) {
-  // Erase bullets from old
-  for (int i = 0; i < MANY_BULLET; ++i) {
-    if (bullets[i].prev_alive) {
-      int prev_bx_int = (int)bullets[i].prev_x;
-      int prev_by_int = (int)bullets[i].prev_y;
-      LCD_DrawPoint(prev_bx_int, prev_by_int, BLACK);
-    }
-  }
-}
+void erase_many_bullets(void) { return; }
