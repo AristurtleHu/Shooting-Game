@@ -10,7 +10,9 @@
 .type start, @function
 
 start:
+	mv t0, a0
 	la s0, choice
+	sw t0, 0(s0) // store the initial choice in memory
 	lw s0, 0(s0)
 	li s1, 1 // the loop index
 	addi sp,sp,-4

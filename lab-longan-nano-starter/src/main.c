@@ -553,25 +553,22 @@ void fps_entity(void) {
   // diamond is 4 of line bullet
 
   static uint64_t prev_frame_mtime_ns = 0;
-  static uint8_t fps_first_calc_done = 0;
   uint32_t fps;
-  uint64_t current_frame_mtime_ns = get_timer_value();
+  uint64_t tmp = get_timer_value(), current_frame_mtime_ns;
+  do {
+    current_frame_mtime_ns = get_timer_value();
+  } while (tmp == current_frame_mtime_ns);
 
-  if (!fps_first_calc_done) {
-    fps = 0; // FPS is unknown for the first frame
-    fps_first_calc_done = 1;
-  } else {
-    uint64_t mtime_diff = current_frame_mtime_ns - prev_frame_mtime_ns;
-    if (mtime_diff > 0) {
-      uint32_t mtime_clk_freq = SystemCoreClock / 4;
-      if (mtime_clk_freq > 0)
-        fps = (uint32_t)(mtime_clk_freq / mtime_diff);
-      else
-        fps = 0; // SystemCoreClock not set or error
-    } else
-      // Frames are extremely fast
-      fps = 99;
-  }
+  uint64_t mtime_diff = current_frame_mtime_ns - prev_frame_mtime_ns;
+  if (mtime_diff > 0) {
+    uint32_t mtime_clk_freq = SystemCoreClock / 4;
+    if (mtime_clk_freq > 0)
+      fps = (uint32_t)(mtime_clk_freq / mtime_diff);
+    else
+      fps = 0; // SystemCoreClock not set or error
+  } else
+    fps = 99;
+
   prev_frame_mtime_ns = current_frame_mtime_ns;
 
   char entity_str[32];
@@ -680,14 +677,17 @@ void spawn_many_bullets(void);
 void erase_many_bullets(void);
 void store_many_bullets(void);
 
+extern int choice;
+
 int main(void) {
   IO_init();
   LCD_Clear(BLACK);
-  start();
+  int default_choice = 0;
+  int mode = start(default_choice);
 
   // Player position
   player_x = 30, player_y = 30;
-  player_size = 6;
+  player_size = 6 + mode - choice;
   player_center_offset = player_size / 2;
 
   // Initial screen clear

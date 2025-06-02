@@ -5,6 +5,6 @@
 #ifndef LAB12_STARTER_EXAMPLE_H
 #define LAB12_STARTER_EXAMPLE_H
 
-void start();
+int start(int);
 
 #endif // LAB12_STARTER_EXAMPLE_H
