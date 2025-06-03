@@ -10,13 +10,15 @@
 .type start, @function
 
 start:
+	addi sp,sp,-12
+	sw s1,8(sp) 
+	sw s0,4(sp) 
+	sw ra,0(sp)
 	mv t0, a0
 	la s0, choice
 	sw t0, 0(s0) // store the initial choice in memory
 	lw s0, 0(s0)
 	li s1, 1 // the loop index
-	addi sp,sp,-4
-	sw ra,0(sp)
 
 loop:
 	li a0, 4 // JOY_CTR
@@ -93,9 +95,11 @@ end:
 	mv a0, x0
 	jal LCD_Clear
 
-	lw ra,0(sp)
-	addi sp,sp,4
 	la t0, choice
 	sw s0, 0(t0)
 	lw a0, 0(t0)
+	lw ra,0(sp)
+	lw s0,4(sp)
+	lw s1,8(sp)
+	addi sp,sp,12
 	ret
